@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
+  Activity,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -22,6 +23,8 @@ import { useToast } from '../../context/ToastContext';
 import { formatInvoiceAmount } from '../../utils/formatters';
 import TopAppBar from '../../components/layout/TopAppBar';
 import BottomNavBar from '../../components/layout/BottomNavBar';
+import DeliveryTrackingMap from '../../components/customer/DeliveryTrackingMap';
+import { DISHES } from '../../utils/mockData';
 
 const PASS_OPTIONS = [
   { id: 'PASS_3', meals: 3, pricePerMeal: 239, title: '3 Meal Starter', subtitle: 'Try the routine' },
@@ -55,6 +58,22 @@ const TIME_WINDOWS = [
 
 const STEP_LABELS = ['Plan', 'Food', 'Schedule', 'Review'];
 
+const ROTATION_DISH_IDS = [
+  'meals-aritaku-veg',
+  'mcveg-paneer-butter-masala',
+  'mcveg-dal-tadka',
+  'rice-curd',
+  'mcnv-home-style-chicken',
+  'biryani-chicken-special',
+];
+
+const NUTRITION_BY_STYLE = {
+  HOME_STYLE: { calories: '520–680 kcal', protein: '18–28 g', label: 'Balanced everyday range' },
+  HIGH_PROTEIN: { calories: '560–720 kcal', protein: '32–44 g', label: 'Higher-protein target' },
+  REGIONAL: { calories: '580–760 kcal', protein: '20–34 g', label: 'Regional rotation range' },
+  LIGHT: { calories: '380–520 kcal', protein: '16–26 g', label: 'Lighter portion range' },
+};
+
 const toLocalIsoDate = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -62,7 +81,7 @@ const toLocalIsoDate = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-const buildUpcomingMeals = ({ mealCount, selectedDays, timeWindow, mealStyle }) => {
+const buildUpcomingMeals = ({ mealCount, selectedDays, timeWindow, mealStyle, rotationDishes }) => {
   const meals = [];
   const cursor = new Date();
   cursor.setHours(0, 0, 0, 0);
@@ -71,12 +90,15 @@ const buildUpcomingMeals = ({ mealCount, selectedDays, timeWindow, mealStyle }) 
   while (meals.length < mealCount) {
     if (selectedDays.includes(cursor.getDay())) {
       const date = toLocalIsoDate(cursor);
+      const rotationDish = rotationDishes[meals.length % rotationDishes.length];
       meals.push({
         id: `meal-${date}-${meals.length + 1}`,
         sequence: meals.length + 1,
         date,
         timeWindow,
         mealStyle,
+        dishId: rotationDish?.id || null,
+        dishName: rotationDish?.name || null,
         status: 'SCHEDULED',
       });
     }
@@ -113,6 +135,7 @@ const MealPassManager = ({ mealPlan, fulfillment }) => {
   const [reschedulingMealId, setReschedulingMealId] = useState(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('19:30');
+  const [rescheduleDishId, setRescheduleDishId] = useState('');
   const [showAllMeals, setShowAllMeals] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
 
@@ -124,6 +147,9 @@ const MealPassManager = ({ mealPlan, fulfillment }) => {
   const deliveredMeals = (mealPlan.upcomingMeals || []).filter((meal) => meal.status === 'DELIVERED').length;
   const nextMeal = scheduledMeals[0];
   const visibleMeals = showAllMeals ? orderedMeals : orderedMeals.slice(0, 4);
+  const availableDishes = (mealPlan.selectedDishIds || [])
+    .map((dishId) => DISHES.find((dish) => dish.id === dishId))
+    .filter(Boolean);
   const completion = Math.round(
     (deliveredMeals / Math.max(mealPlan.mealCount, 1)) * 100
   );
@@ -175,13 +201,17 @@ const MealPassManager = ({ mealPlan, fulfillment }) => {
     setReschedulingMealId(meal.id);
     setRescheduleDate(meal.date);
     setRescheduleTime(meal.timeWindow);
+    setRescheduleDishId(meal.dishId || availableDishes[0]?.id || '');
   };
 
   const saveReschedule = () => {
     if (!reschedulingMealId || !rescheduleDate) return;
+    const selectedDish = availableDishes.find((dish) => dish.id === rescheduleDishId);
     updateScheduledMeal(reschedulingMealId, {
       date: rescheduleDate,
       timeWindow: rescheduleTime,
+      dishId: selectedDish?.id || null,
+      dishName: selectedDish?.name || null,
       rescheduledAt: new Date().toISOString(),
     });
     setReschedulingMealId(null);
@@ -255,7 +285,7 @@ const MealPassManager = ({ mealPlan, fulfillment }) => {
               <div>
                 <p className="text-[10px] uppercase tracking-wider font-black text-[#F47712]">Next meal</p>
                 <h2 className="text-xl font-black mt-1">{formatMealDate(nextMeal.date)}</h2>
-                <p className="text-sm text-[#6E5F58] mt-1">{formatMealTime(nextMeal.timeWindow)} • {mealPlan.mealStyleLabel}</p>
+                <p className="text-sm text-[#6E5F58] mt-1">{formatMealTime(nextMeal.timeWindow)} • {nextMeal.dishName || mealPlan.mealStyleLabel}</p>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-[#FBECEF] text-[#A30F3B] flex items-center justify-center">
                 <CalendarDays className="w-6 h-6" />
@@ -267,6 +297,46 @@ const MealPassManager = ({ mealPlan, fulfillment }) => {
             </div>
           </section>
         )}
+
+        {fulfillment.type === 'DELIVERY' && (
+          <section>
+            <div className="flex items-end justify-between gap-3 mb-2 px-1">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-black text-[#F47712]">Upcoming meal route</p>
+                <h2 className="font-black mt-1">Kitchen to {fulfillment.label}</h2>
+              </div>
+              <span className="text-[10px] text-[#75665F]">{fulfillment.distanceKm} km</span>
+            </div>
+            <DeliveryTrackingMap
+              destination={fulfillment.location}
+              progress={0}
+              riderAssigned={false}
+            />
+          </section>
+        )}
+
+        <section className="rounded-[22px] bg-white border border-[#EADFD6] p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <Activity className="w-5 h-5" />
+            </span>
+            <div className="flex-1">
+              <p className="text-[10px] uppercase tracking-wider font-black text-emerald-700">Nutrition summary</p>
+              <h2 className="text-sm font-black mt-0.5">{mealPlan.nutrition?.label || 'Estimated meal range'}</h2>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <div className="rounded-xl bg-[#FFF8F1] p-3">
+              <p className="text-[9px] uppercase font-bold text-[#75665F]">Energy</p>
+              <p className="text-sm font-black mt-1">{mealPlan.nutrition?.calories || '520–720 kcal'}</p>
+            </div>
+            <div className="rounded-xl bg-[#FFF8F1] p-3">
+              <p className="text-[9px] uppercase font-bold text-[#75665F]">Protein</p>
+              <p className="text-sm font-black mt-1">{mealPlan.nutrition?.protein || '18–34 g'}</p>
+            </div>
+          </div>
+          <p className="text-[9px] leading-relaxed text-[#95847C] mt-2">Approximate ranges vary by selected dish and customization; not medical nutrition advice.</p>
+        </section>
 
         <section className="rounded-[22px] bg-white border border-[#EADFD6] p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
@@ -294,7 +364,9 @@ const MealPassManager = ({ mealPlan, fulfillment }) => {
                       {meal.isReplacement ? 'Replacement' : `Meal ${meal.sequence}`} • {formatMealTime(meal.timeWindow)}
                     </p>
                     <p className="text-[11px] text-[#75665F] mt-0.5">
-                      {meal.status === 'SKIPPED' ? 'Skipped—credit moved to the cycle end' : mealPlan.mealStyleLabel}
+                      {meal.status === 'SKIPPED'
+                        ? 'Skipped—credit moved to the cycle end'
+                        : meal.dishName || mealPlan.mealStyleLabel}
                     </p>
                   </div>
                   {meal.status === 'SCHEDULED' && mealPlan.status !== 'PAUSED' && (
@@ -333,6 +405,20 @@ const MealPassManager = ({ mealPlan, fulfillment }) => {
                         </select>
                       </label>
                     </div>
+                    {availableDishes.length > 0 && (
+                      <label className="block text-[10px] font-bold text-[#6E5F58]">
+                        Change dish
+                        <select
+                          value={rescheduleDishId}
+                          onChange={(event) => setRescheduleDishId(event.target.value)}
+                          className="w-full h-10 mt-1 rounded-lg border border-[#EADFD6] bg-white px-2 text-xs"
+                        >
+                          {availableDishes.map((dish) => (
+                            <option key={dish.id} value={dish.id}>{dish.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { label: '+1 day', days: 1 },
@@ -433,6 +519,11 @@ const MealPassScreen = () => {
   const [mealStyle, setMealStyle] = useState('HOME_STYLE');
   const [diet, setDiet] = useState(profile?.dietaryPreference || 'NO_PREFERENCE');
   const [spice, setSpice] = useState(profile?.spicePreference || 'MEDIUM');
+  const [selectedDishIds, setSelectedDishIds] = useState([
+    'meals-aritaku-veg',
+    'mcveg-paneer-butter-masala',
+    'mcveg-dal-tadka',
+  ]);
   const [selectedDays, setSelectedDays] = useState([1, 3, 5]);
   const [timeWindow, setTimeWindow] = useState('19:30');
   const [renewalMode, setRenewalMode] = useState('AUTOPAY');
@@ -440,14 +531,23 @@ const MealPassScreen = () => {
 
   const selectedPlan = PASS_OPTIONS.find((plan) => plan.id === selectedPlanId) || PASS_OPTIONS[1];
   const selectedStyle = MEAL_STYLES.find((style) => style.id === mealStyle) || MEAL_STYLES[0];
+  const nutrition = NUTRITION_BY_STYLE[mealStyle] || NUTRITION_BY_STYLE.HOME_STYLE;
+  const rotationDishes = ROTATION_DISH_IDS
+    .map((dishId) => DISHES.find((dish) => dish.id === dishId))
+    .filter(Boolean);
+  const visibleRotationDishes = ['VEGETARIAN', 'VEGAN', 'JAIN'].includes(diet)
+    ? rotationDishes.filter((dish) => dish.foodType === 'VEGETARIAN')
+    : rotationDishes;
+  const selectedRotationDishes = rotationDishes.filter((dish) => selectedDishIds.includes(dish.id));
   const totalPrice = selectedPlan.meals * selectedPlan.pricePerMeal;
   const regularPrice = selectedPlan.meals * 270;
   const savings = regularPrice - totalPrice;
 
   const canContinue = useMemo(() => {
+    if (step === 2) return selectedDishIds.length >= 3;
     if (step === 3) return selectedDays.length > 0 && hasFulfillmentDetails;
     return true;
-  }, [hasFulfillmentDetails, selectedDays.length, step]);
+  }, [hasFulfillmentDetails, selectedDays.length, selectedDishIds.length, step]);
 
   const toggleDay = (dayId) => {
     setSelectedDays((current) =>
@@ -455,6 +555,27 @@ const MealPassScreen = () => {
         ? current.filter((id) => id !== dayId)
         : [...current, dayId]
     );
+  };
+
+  const toggleRotationDish = (dishId) => {
+    setSelectedDishIds((current) =>
+      current.includes(dishId)
+        ? current.filter((id) => id !== dishId)
+        : [...current, dishId]
+    );
+  };
+
+  const changeDiet = (nextDiet) => {
+    setDiet(nextDiet);
+    if (['VEGETARIAN', 'VEGAN', 'JAIN'].includes(nextDiet)) {
+      const vegetarianIds = rotationDishes
+        .filter((dish) => dish.foodType === 'VEGETARIAN')
+        .map((dish) => dish.id);
+      setSelectedDishIds((current) => {
+        const suitableIds = current.filter((id) => vegetarianIds.includes(id));
+        return suitableIds.length >= 3 ? suitableIds : vegetarianIds.slice(0, 3);
+      });
+    }
   };
 
   const continueStep = () => {
@@ -478,6 +599,7 @@ const MealPassScreen = () => {
       selectedDays,
       timeWindow,
       mealStyle,
+      rotationDishes: selectedRotationDishes,
     });
     saveMealPlan({
       id: `MP-${Date.now().toString().slice(-7)}`,
@@ -490,6 +612,8 @@ const MealPassScreen = () => {
       estimatedSavings: savings,
       mealStyle,
       mealStyleLabel: selectedStyle.label,
+      selectedDishIds,
+      nutrition,
       diet,
       spice,
       selectedDays,
@@ -607,7 +731,7 @@ const MealPassScreen = () => {
             <div className="grid grid-cols-2 gap-3 mt-4">
               <label className="text-xs font-black">
                 Diet
-                <select value={diet} onChange={(event) => setDiet(event.target.value)} className="w-full h-12 mt-1 rounded-xl border border-[#EADFD6] bg-white px-3 text-xs">
+                <select value={diet} onChange={(event) => changeDiet(event.target.value)} className="w-full h-12 mt-1 rounded-xl border border-[#EADFD6] bg-white px-3 text-xs">
                   <option value="NO_PREFERENCE">No preference</option>
                   <option value="VEGETARIAN">Vegetarian</option>
                   <option value="NON_VEGETARIAN">Non-vegetarian</option>
@@ -623,6 +747,44 @@ const MealPassScreen = () => {
                   <option value="HOT">Hot</option>
                 </select>
               </label>
+            </div>
+
+            <div className="mt-5">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black">Choose your dish rotation</p>
+                  <p className="text-[10px] text-[#75665F] mt-0.5">Select at least 3. You can change individual meals later.</p>
+                </div>
+                <span className={`text-[10px] font-black ${selectedDishIds.length >= 3 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {selectedDishIds.length} selected
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                {visibleRotationDishes.map((dish) => {
+                  const selected = selectedDishIds.includes(dish.id);
+                  return (
+                    <button
+                      type="button"
+                      key={dish.id}
+                      onClick={() => toggleRotationDish(dish.id)}
+                      aria-pressed={selected}
+                      className={`rounded-xl border-2 overflow-hidden text-left ${
+                        selected ? 'border-[#A30F3B] bg-[#FBECEF]/40' : 'border-[#EADFD6] bg-white'
+                      }`}
+                    >
+                      <img src={dish.image} alt="" className="w-full h-20 object-cover" />
+                      <span className="p-2.5 flex items-start gap-2">
+                        <span className="text-[10px] font-black leading-snug flex-1">{dish.name}</span>
+                        <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                          selected ? 'bg-[#A30F3B] border-[#A30F3B] text-white' : 'border-[#C8B8AF]'
+                        }`}>
+                          {selected && <Check className="w-3 h-3" />}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </section>
         )}
@@ -685,6 +847,7 @@ const MealPassScreen = () => {
                 <div>
                   <p className="text-lg font-black">{selectedPlan.title}</p>
                   <p className="text-xs text-[#75665F] mt-1">{selectedStyle.label} • {diet.replaceAll('_', ' ').toLowerCase()} • {spice.toLowerCase()} spice</p>
+                  <p className="text-[10px] text-[#A30F3B] font-bold mt-1">{selectedRotationDishes.length} chosen dishes in rotation</p>
                 </div>
                 <span className="w-11 h-11 rounded-xl bg-[#FBECEF] text-[#A30F3B] flex items-center justify-center">
                   <Sparkles className="w-5 h-5" />
@@ -694,6 +857,17 @@ const MealPassScreen = () => {
                 <div className="flex justify-between text-[#6E5F58]"><span>{selectedPlan.meals} meals × {formatInvoiceAmount(selectedPlan.pricePerMeal)}</span><span>{formatInvoiceAmount(totalPrice)}</span></div>
                 <div className="flex justify-between text-emerald-700 font-bold"><span>Estimated menu saving</span><span>{formatInvoiceAmount(savings)}</span></div>
                 <div className="flex justify-between font-black pt-2 border-t border-[#EFE6DF]"><span>Cycle total</span><span className="text-[#A30F3B]">{formatInvoiceAmount(totalPrice)}</span></div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="rounded-2xl border border-[#EADFD6] bg-white p-3">
+                <p className="text-[9px] uppercase font-black text-[#75665F]">Energy range</p>
+                <p className="text-sm font-black mt-1">{nutrition.calories}</p>
+              </div>
+              <div className="rounded-2xl border border-[#EADFD6] bg-white p-3">
+                <p className="text-[9px] uppercase font-black text-[#75665F]">Protein range</p>
+                <p className="text-sm font-black mt-1">{nutrition.protein}</p>
               </div>
             </div>
 

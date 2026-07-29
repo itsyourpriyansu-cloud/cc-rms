@@ -13,7 +13,7 @@ const ReferralCard = ({ firstName, phone, onNotify }) => {
 
   const copyInvite = async () => {
     try {
-      await navigator.clipboard.writeText(`${inviteText} Code: ${referralCode}`);
+      await navigator.clipboard.writeText(inviteText);
       setCopied(true);
       onNotify?.('Referral code copied', 'success');
       window.setTimeout(() => setCopied(false), 1800);

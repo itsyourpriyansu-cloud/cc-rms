@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bike, CalendarDays, ChevronRight, Heart, LogOut, MapPin, ShieldCheck, SlidersHorizontal, UserRound } from 'lucide-react';
+import { Bike, CalendarDays, ChevronRight, Heart, LogOut, MapPin, ShieldCheck, Sparkles, SlidersHorizontal, UserRound } from 'lucide-react';
 import BottomNavBar from '../../components/layout/BottomNavBar';
 import TopAppBar from '../../components/layout/TopAppBar';
 import { useCustomerSession } from '../../context/CustomerSessionContext';
@@ -87,6 +87,20 @@ const CustomerAccountScreen = () => {
             </span>
           </span>
           <ChevronRight className="w-4 h-4 text-[#95847C]" />
+        </button>
+
+        <button
+          onClick={() => navigate('/for-you')}
+          className="w-full bg-[#211917] text-white rounded-2xl border border-[#211917] p-4 flex items-center gap-3 text-left shadow-sm"
+        >
+          <span className="w-10 h-10 rounded-xl bg-[#F47712] text-white flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="text-xs font-bold block">My Mangamma profile</span>
+            <span className="text-[11px] text-white/65 truncate block">Taste Graph, loyalty, family and referral controls</span>
+          </span>
+          <ChevronRight className="w-4 h-4 text-[#F8A04B]" />
         </button>
 
         <section className="bg-white rounded-2xl border border-[#EADFD6] p-4 space-y-4">

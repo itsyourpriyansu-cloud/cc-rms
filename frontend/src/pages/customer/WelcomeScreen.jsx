@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Clock3,
   CalendarDays,
+  HeartHandshake,
   Navigation,
   PackageCheck,
   ShieldCheck,
@@ -190,6 +191,24 @@ const WelcomeScreen = () => {
             <ChevronRight className="w-4 h-4 text-emerald-700" />
           </button>
         )}
+
+        <button
+          onClick={() => navigate('/for-you')}
+          className="mx-4 mt-4 w-[calc(100%-32px)] rounded-[22px] bg-[#211917] text-white p-4 text-left shadow-lg overflow-hidden relative"
+        >
+          <span className="absolute -right-8 -top-10 w-28 h-28 rounded-full bg-[#F47712]/15" />
+          <span className="relative flex items-center gap-3">
+            <span className="w-12 h-12 rounded-2xl bg-[#F47712] text-white flex items-center justify-center shrink-0">
+              <HeartHandshake className="w-6 h-6" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="text-[10px] uppercase tracking-wider font-black text-[#F8A04B] block">My Mangamma</span>
+              <span className="font-black block mt-0.5">Your taste, benefits and family</span>
+              <span className="text-[11px] text-white/65 block mt-1">See favourites, delivery map, loyalty and exclusive drops</span>
+            </span>
+            <ChevronRight className="w-5 h-5 text-[#F8A04B]" />
+          </span>
+        </button>
 
         <button
           onClick={() => navigate('/meal-pass')}

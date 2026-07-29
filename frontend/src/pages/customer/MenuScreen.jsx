@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Heart, Sparkles, Users } from 'lucide-react';
 import { menuService } from '../../services/menuService';
 import TopAppBar from '../../components/layout/TopAppBar';
 import BottomNavBar from '../../components/layout/BottomNavBar';
@@ -28,6 +29,7 @@ import { useToast } from '../../context/ToastContext';
 
 const MenuScreen = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -158,6 +160,41 @@ const MenuScreen = () => {
           fulfillmentLabel={fulfillment.type === 'DELIVERY' ? `Delivery to ${fulfillment.label}` : 'Self pickup'}
           onSeeFavourites={scrollToFavourites}
         />
+
+        {location.state?.orderMode && (
+          <section className="mx-4 mb-4 rounded-2xl border border-[#E7C8D2] bg-[#FBECEF] p-3 flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-[#A30F3B] text-white flex items-center justify-center">
+              {location.state.orderMode === 'GIFT' ? <Heart className="w-5 h-5" /> : <Users className="w-5 h-5" />}
+            </span>
+            <span className="flex-1">
+              <span className="text-xs font-black block">
+                {location.state.orderMode === 'GIFT' ? 'Gift meal mode' : 'Group cart mode'}
+              </span>
+              <span className="text-[10px] text-[#705F58] block mt-0.5">
+                {location.state.orderMode === 'GIFT'
+                  ? 'Choose a suitable dish using the recipient preference you just selected.'
+                  : 'Build the shared cart first; invite and split-payment adapters connect at checkout.'}
+              </span>
+            </span>
+          </section>
+        )}
+
+        <button
+          type="button"
+          onClick={() => navigate('/for-you?tab=taste')}
+          className="mx-4 mb-4 w-[calc(100%-32px)] rounded-2xl border border-[#EADFD6] bg-white p-3 flex items-center gap-3 text-left shadow-sm"
+        >
+          <span className="w-10 h-10 rounded-xl bg-[#FFF0E3] text-[#A30F3B] flex items-center justify-center">
+            <Sparkles className="w-5 h-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="text-[10px] uppercase tracking-wider font-black text-[#F47712] block">Taste Graph active</span>
+            <span className="text-xs font-black block mt-0.5">
+              {(profile?.spicePreference || 'MEDIUM').toLowerCase()} spice • under ₹{profile?.typicalBudget || 350}
+            </span>
+          </span>
+          <span className="text-[10px] font-black text-[#A30F3B]">Tune</span>
+        </button>
 
         {/* 2. Compact Kitchen Status */}
         <CompactKitchenStatus kitchenLoad={kitchenLoad} />

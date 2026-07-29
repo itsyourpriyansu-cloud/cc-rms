@@ -13,7 +13,9 @@ import {
   Navigation,
   PackageCheck,
   Phone,
+  ShieldCheck,
   ShoppingBag,
+  ThermometerSun,
 } from 'lucide-react';
 import TopAppBar from '../../components/layout/TopAppBar';
 import BottomNavBar from '../../components/layout/BottomNavBar';
@@ -153,6 +155,54 @@ const OrderTrackingScreen = () => {
             </button>
           </section>
         )}
+
+        <section className="rounded-[22px] border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </span>
+            <div className="flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] uppercase tracking-wider font-black text-emerald-700">Reliability guarantee</p>
+                <span className="text-[9px] font-black rounded-lg bg-white px-2 py-1 text-emerald-800">₹75 protection</span>
+              </div>
+              <h2 className="font-black text-emerald-950 mt-1">
+                {stageIndex === stages.length - 1 ? 'Delivery window completed' : `Current promised window: ${etaText}`}
+              </h2>
+              <p className="text-[11px] leading-relaxed text-emerald-800 mt-1">
+                {activeOrder.previousEstimate
+                  ? `ETA changed from ${activeOrder.previousEstimate}. ${activeOrder.etaChangeReason || 'The kitchen updated the estimate after a preparation check.'}`
+                  : 'If we miss the final guaranteed window, eligible credit is added after server-side delivery verification.'}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-[22px] bg-white border border-[#EADFD6] p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider font-black text-[#F47712]">Food condition checks</p>
+              <h2 className="font-black mt-1">Packed for a reliable handoff</h2>
+            </div>
+            <ThermometerSun className="w-6 h-6 text-[#A30F3B]" />
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            {[
+              { label: 'Tamper seal', readyAt: 2 },
+              { label: 'Hot/cold separated', readyAt: 2 },
+              { label: 'Item count checked', readyAt: 2 },
+              { label: 'Rider handoff logged', readyAt: 3 },
+            ].map((check) => {
+              const complete = stageIndex >= check.readyAt;
+              return (
+                <div key={check.label} className={`rounded-xl border p-2.5 flex items-center gap-2 ${complete ? 'border-emerald-200 bg-emerald-50' : 'border-[#EADFD6] bg-[#FFF8F1]'}`}>
+                  <CheckCircle2 className={`w-4 h-4 ${complete ? 'text-emerald-700' : 'text-[#B6A8A0]'}`} />
+                  <span className={`text-[10px] font-bold ${complete ? 'text-emerald-900' : 'text-[#75665F]'}`}>{check.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         {riderAssigned && (
           <section className="rounded-2xl bg-white border border-[#EADFD6] p-4 flex items-center gap-3 shadow-sm">

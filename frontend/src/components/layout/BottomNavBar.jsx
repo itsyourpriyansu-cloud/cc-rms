@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, ShoppingBag, ReceiptText, UserRound } from 'lucide-react';
+import { BookOpen, ShoppingBag, ReceiptText, Sparkles, UserRound } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useOrder } from '../../context/OrderContext';
 
@@ -21,6 +21,7 @@ const navTheme = {
 };
 
 const NAV_ITEMS = [
+  { label: 'For you', path: '/for-you', icon: Sparkles },
   { label: 'Menu', path: '/menu', icon: BookOpen },
   { label: 'Cart', path: '/cart', icon: ShoppingBag },
   { label: 'Orders', path: '/orders', icon: ReceiptText },
@@ -47,11 +48,12 @@ const BottomNavBar = () => {
         WebkitBackdropFilter: 'blur(16px)',
       }}
     >
-      <div className="grid grid-cols-4 items-center gap-1.5 w-full h-full">
+      <div className="grid grid-cols-5 items-center gap-1 w-full h-full">
         {NAV_ITEMS.map((item) => {
           const IconComponent = item.icon;
           const isActive =
             location.pathname === item.path ||
+            (item.path === '/for-you' && location.pathname === '/') ||
             (item.path === '/menu' && location.pathname.startsWith('/menu/')) ||
             (item.path === '/orders' &&
               ['/order-confirmation', '/order-tracking', '/bill', '/payment'].includes(location.pathname));
