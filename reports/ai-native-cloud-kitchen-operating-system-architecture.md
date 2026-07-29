@@ -20,7 +20,7 @@ each completed step.
 - [x] **Step 1 — Canonical MAOS contracts:** tenant, outlet, customer, consent,
   order lifecycle, event envelope, decision proposal, approval controls and
   action receipt are implemented as tested TypeScript contracts.
-- [ ] **Step 2 — PostgreSQL foundation:** migrations, tenant isolation,
+- [x] **Step 2 — PostgreSQL foundation:** migrations, tenant isolation,
   transaction boundaries and event outbox.
 - [ ] **Step 3 — Phone authentication API:** OTP provider boundary, secure
   sessions and customer migration from browser-only storage.

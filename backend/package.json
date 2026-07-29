@@ -7,13 +7,18 @@
     "build": "tsc --project tsconfig.build.json",
     "typecheck": "tsc --project tsconfig.json",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run build && npm run test"
+    "check": "npm run typecheck && npm run build && npm run test",
+    "migrate": "node dist/database/migrate.js",
+    "migrate:local": "node --env-file=.env dist/database/migrate.js"
   },
   "dependencies": {
+    "pg": "^8.16.3",
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14",
     "@types/node": "^24.10.0",
+    "@types/pg": "^8.15.6",
     "typescript": "^5.9.3",
     "vitest": "^4.0.15"
   },
