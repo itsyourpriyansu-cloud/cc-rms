@@ -1,23 +1,36 @@
-# Restaurant Management System - Backend
+# RMS Backend Foundation
 
-Backend API service directory for the Restaurant Management System.
+This directory contains the production backend for the AI-native cloud-kitchen
+operating system.
 
-## Architecture & Setup
+The implementation follows the protocol defined in
+[`../reports/ai-native-cloud-kitchen-operating-system-architecture.md`](../reports/ai-native-cloud-kitchen-operating-system-architecture.md).
 
-This directory is reserved for the backend service (FastAPI / Django / Flask).
+## Completed: Step 1 — canonical contracts
 
-### Environment Setup
+The first foundation step defines and validates:
 
-1. Create a Python virtual environment:
-   ```bash
-   python -m venv venv
-   ```
+- tenant, outlet, customer and consent records;
+- the order lifecycle and legal state transitions;
+- CloudEvents-compatible MAOS event envelopes;
+- typed AI decision proposals;
+- approval and risk constraints;
+- immutable action receipts.
 
-2. Activate the virtual environment:
-   - **Windows**: `venv\Scripts\activate`
-   - **macOS/Linux**: `source venv/bin/activate`
+These contracts are deliberately independent of HTTP, databases and AI
+providers. Later steps must import them rather than inventing new payload
+shapes.
 
-3. Install dependencies (when requirements.txt is present):
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Commands
+
+```bash
+npm install
+npm run check
+```
+
+`npm run check` type-checks the package and runs the contract tests.
+
+## Next step
+
+Add the PostgreSQL schema, migrations, tenant isolation and transactional
+outbox using these contracts as the source vocabulary.

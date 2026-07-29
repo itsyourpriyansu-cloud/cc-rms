@@ -12,6 +12,28 @@
 
 ---
 
+## Implementation progress
+
+This document is the implementation source of truth and will be updated after
+each completed step.
+
+- [x] **Step 1 — Canonical MAOS contracts:** tenant, outlet, customer, consent,
+  order lifecycle, event envelope, decision proposal, approval controls and
+  action receipt are implemented as tested TypeScript contracts.
+- [ ] **Step 2 — PostgreSQL foundation:** migrations, tenant isolation,
+  transaction boundaries and event outbox.
+- [ ] **Step 3 — Phone authentication API:** OTP provider boundary, secure
+  sessions and customer migration from browser-only storage.
+- [ ] **Step 4 — Order vertical slice:** persisted checkout, kitchen tasks,
+  order-risk projection and live tracking.
+- [ ] **Step 5 — Manager exception workflow:** evidence, approval, action,
+  verification and rollback.
+
+Implementation files for Step 1 are documented in
+[`backend/README.md`](../backend/README.md).
+
+---
+
 ## 1. Executive decision
 
 The product should not become another manual restaurant-management suite with an AI chatbot added on top. It should become an **AI-native operating system for cloud kitchens**.
