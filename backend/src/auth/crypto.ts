@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 
 export const createOpaqueId = (prefix: string): string =>
-  `${prefix}_${randomBytes(18).toString('base64url')}`;
+  `${prefix}_${randomBytes(18).toString('hex')}`;
 
 export const createSessionToken = (tenantId: string): string =>
   `${tenantId}.${randomBytes(32).toString('base64url')}`;

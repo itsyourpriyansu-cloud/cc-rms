@@ -50,6 +50,23 @@ The customer identity flow now uses:
 - MAOS authentication events written through the transactional outbox;
 - production startup checks that prohibit development OTPs and insecure cookies.
 
+### Step 4A — production order foundation
+
+The persisted commerce foundation now includes:
+
+- tenant-safe brands, categories, menu items, modifiers and outlet availability;
+- versioned recipes, inventory components and immutable published recipe facts;
+- expiring checkout quotes with immutable item, modifier, allergen and price
+  snapshots;
+- verified payment intents and single-use, idempotent quote-to-order conversion;
+- database rejection of expired quotes, altered totals and mismatched payments;
+- recipe-derived kitchen tasks with legal transitions and optimistic versions;
+- append-only delivery milestones and order-risk evidence;
+- typed quote, payment, order, task, milestone and risk event payloads;
+- forced row-level security and composite tenant foreign keys throughout;
+- PostgreSQL-compatible migration integration coverage for isolation,
+  immutability, quote consumption and concurrent-version conflicts.
+
 ## Commands
 
 ```bash
@@ -75,5 +92,7 @@ configured.
 
 ## Next step
 
-Build the persisted order vertical slice: checkout, kitchen tasks, live
-milestones and the first order-risk projection.
+Build Step 4B: server-calculated quote and payment-verification APIs, then
+commit the order, its immutable lines and its outbox events in one idempotent
+database transaction. The customer checkout must remain on its current adapter
+until that API passes provider, retry and real-PostgreSQL concurrency tests.

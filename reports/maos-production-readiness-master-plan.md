@@ -242,7 +242,7 @@ flowchart LR
 | Order | Work package | Priority | Exit evidence |
 |---|---|---:|---|
 | 1 | Production guardrail pack | P0 | CI, secret/dependency scans, real PostgreSQL test, documented accepted risks |
-| 2 | Order foundation migration | P0 | catalog/recipe/quote/payment-intent/kitchen-task/milestone schemas; RLS; replay/concurrency tests |
+| 2 | Order foundation migration — implemented in code | P0 | catalog/recipe/quote/payment-intent/kitchen-task/milestone schemas; RLS; immutable snapshots and optimistic-concurrency tests |
 | 3 | Idempotent quote and checkout API | P0 | repeated request creates one payment intent/order; server-calculated totals |
 | 4 | Payment verification boundary | P0 | signed webhook, server-to-server verification and reconciliation |
 | 5 | Kitchen-task orchestration | P1 | recipe/modifier tasks appear once and obey legal transitions |
@@ -1048,9 +1048,13 @@ release occurs. Material changes require an ADR and reviewed pull request.
 
 ## 24. Next approved implementation task
 
+Step 4A is implemented in code and verified on the PostgreSQL-compatible PGlite
+engine. Its production acceptance remains open until the migration also passes
+the real-PostgreSQL CI, forward-fix and rollback rehearsal defined below.
+
 The next implementation task is:
 
-> **Production Guardrail Pack + Step 4A Order Foundation**
+> **Production Guardrail Pack + Step 4B Quote, Payment and Checkout API**
 
 It should be split into two reviewable commits/PRs.
 
@@ -1063,27 +1067,31 @@ It should be split into two reviewable commits/PRs.
 - create an OpenAPI generation/validation decision;
 - establish zero-new-warning and bundle budgets.
 
-### Commit/PR 2 — order foundation
+### Completed implementation unit — Step 4A order foundation
 
 - migration for catalog, recipes, availability, quotes, payment intents,
   kitchen tasks and milestones;
 - tenant/outlet RLS and composite foreign keys;
 - money and quote invariants;
 - order/payment/idempotency constraints;
-- database and concurrency tests;
+- PostgreSQL-compatible database, isolation and optimistic-concurrency tests;
 - event contracts for quote/order/task/milestone;
 - no frontend checkout switch until the persisted API passes.
 
-### Step 4A acceptance
+### Remaining production acceptance and Step 4B
 
-- migrations pass from empty and current schema on real PostgreSQL;
-- malicious cross-tenant relationships fail;
-- duplicate idempotency keys cannot create duplicate commercial facts;
-- an expired quote cannot be ordered;
-- money is calculated in paise;
-- recipe/modifier snapshot is immutable for the placed order;
-- every committed fact has its outbox event;
-- rollback/forward-fix and release evidence exist.
+- [ ] migrations pass from empty and current schema on real PostgreSQL CI;
+- [x] malicious cross-tenant reads and relationships fail in integration tests;
+- [x] duplicate quote/idempotency constraints prevent duplicate commercial facts;
+- [x] an expired or already-consumed quote cannot be ordered;
+- [x] money is calculated and constrained in paise;
+- [x] accepted recipe/modifier snapshots cannot be changed on placed lines;
+- [ ] quote and checkout endpoints calculate only from server-side catalog facts;
+- [ ] signed provider verification and reconciliation are implemented;
+- [ ] every committed quote/payment/order fact writes its outbox event in the
+  same transaction;
+- [ ] retry and true concurrent checkout tests pass on real PostgreSQL;
+- [ ] rollback/forward-fix and release evidence exist.
 
 ---
 

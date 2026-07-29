@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readAuthConfig } from '../src/auth/config.js';
 import {
+  createOpaqueId,
   keyedDigest,
   normaliseIndianPhone,
   otpDigest,
@@ -53,6 +54,17 @@ describe('customer authentication configuration', () => {
 });
 
 describe('phone and secret handling', () => {
+  it('always creates database-safe opaque identifiers', () => {
+    const generatedIds = Array.from({ length: 100 }, () =>
+      createOpaqueId('ses'),
+    );
+
+    expect(
+      generatedIds.every((id) => /^ses_[A-Za-z0-9][A-Za-z0-9_-]{15,80}$/.test(id)),
+    ).toBe(true);
+    expect(new Set(generatedIds)).toHaveLength(generatedIds.length);
+  });
+
   it('normalises Indian national and E.164-like input', () => {
     expect(normaliseIndianPhone('98765 43210')).toBe('+919876543210');
     expect(normaliseIndianPhone('+91 98765 43210')).toBe('+919876543210');

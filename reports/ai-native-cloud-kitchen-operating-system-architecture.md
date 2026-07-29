@@ -26,10 +26,20 @@ each completed step.
   sessions and customer migration from browser-only storage.
 - [ ] **Step 4 — Order vertical slice:** persisted checkout, kitchen tasks,
   order-risk projection and live tracking.
+  - [x] **Step 4A — Production order foundation:** tenant-safe catalog,
+    versioned recipes, availability, immutable quotes and quote lines, verified
+    payment intents, quote-consuming order constraints, kitchen tasks,
+    append-only milestones and risk snapshots, plus typed commerce events.
+  - [ ] **Step 4B — Quote, payment and checkout APIs:** server-calculated quote,
+    provider verification, idempotent order transaction and outbox records.
+  - [ ] **Step 4C — Kitchen and tracking APIs:** task orchestration, milestone
+    stream and customer tracking UI.
+  - [ ] **Step 4D — Order-risk shadow mode:** measured prediction, explanation
+    and manager-visible evidence without autonomous operational action.
 - [ ] **Step 5 — Manager exception workflow:** evidence, approval, action,
   verification and rollback.
 
-Implementation files for Step 1 are documented in
+Implementation files for Steps 1 through 4A are documented in
 [`backend/README.md`](../backend/README.md).
 
 ---
