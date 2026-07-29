@@ -30,8 +30,10 @@ each completed step.
     versioned recipes, availability, immutable quotes and quote lines, verified
     payment intents, quote-consuming order constraints, kitchen tasks,
     append-only milestones and risk snapshots, plus typed commerce events.
-  - [ ] **Step 4B — Quote, payment and checkout APIs:** server-calculated quote,
-    provider verification, idempotent order transaction and outbox records.
+  - [x] **Step 4B — Quote, payment and checkout APIs:** effective-dated
+    server pricing, signed provider verification, idempotent quote/payment/order
+    transactions, allergen acknowledgement, kitchen-task creation and outbox
+    records are implemented and tested on the PostgreSQL-compatible engine.
   - [ ] **Step 4C — Kitchen and tracking APIs:** task orchestration, milestone
     stream and customer tracking UI.
   - [ ] **Step 4D — Order-risk shadow mode:** measured prediction, explanation
@@ -39,7 +41,7 @@ each completed step.
 - [ ] **Step 5 — Manager exception workflow:** evidence, approval, action,
   verification and rollback.
 
-Implementation files for Steps 1 through 4A are documented in
+Implementation files for Steps 1 through 4B are documented in
 [`backend/README.md`](../backend/README.md).
 
 ---

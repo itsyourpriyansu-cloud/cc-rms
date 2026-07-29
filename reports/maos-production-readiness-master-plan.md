@@ -243,8 +243,8 @@ flowchart LR
 |---|---|---:|---|
 | 1 | Production guardrail pack | P0 | CI, secret/dependency scans, real PostgreSQL test, documented accepted risks |
 | 2 | Order foundation migration — implemented in code | P0 | catalog/recipe/quote/payment-intent/kitchen-task/milestone schemas; RLS; immutable snapshots and optimistic-concurrency tests |
-| 3 | Idempotent quote and checkout API | P0 | repeated request creates one payment intent/order; server-calculated totals |
-| 4 | Payment verification boundary | P0 | signed webhook, server-to-server verification and reconciliation |
+| 3 | Idempotent quote and checkout API — implemented in code | P0 | repeated request creates one payment intent/order; server-calculated totals and transactional outbox |
+| 4 | Payment verification boundary — implemented in code | P0 | signed normalized webhook and exact amount/reference verification; live-gateway certification remains |
 | 5 | Kitchen-task orchestration | P1 | recipe/modifier tasks appear once and obey legal transitions |
 | 6 | SSE milestone stream | P1 | customer, kitchen and manager consume the same committed milestone |
 | 7 | Order-risk projection | P1 | typed shadow proposal with evidence, confidence, expiry and no side effect |
@@ -1048,13 +1048,14 @@ release occurs. Material changes require an ADR and reviewed pull request.
 
 ## 24. Next approved implementation task
 
-Step 4A is implemented in code and verified on the PostgreSQL-compatible PGlite
-engine. Its production acceptance remains open until the migration also passes
-the real-PostgreSQL CI, forward-fix and rollback rehearsal defined below.
+Steps 4A and 4B are implemented in code and verified on the
+PostgreSQL-compatible PGlite engine. Production acceptance remains open until
+the flow passes real-PostgreSQL CI, forward-fix/rollback rehearsal and the
+selected live payment-gateway certification.
 
 The next implementation task is:
 
-> **Production Guardrail Pack + Step 4B Quote, Payment and Checkout API**
+> **Production Guardrail Pack + Step 4C Kitchen and Live Tracking**
 
 It should be split into two reviewable commits/PRs.
 
@@ -1078,7 +1079,18 @@ It should be split into two reviewable commits/PRs.
 - event contracts for quote/order/task/milestone;
 - no frontend checkout switch until the persisted API passes.
 
-### Remaining production acceptance and Step 4B
+### Completed implementation unit — Step 4B checkout API
+
+- authenticated server-priced quote endpoint;
+- effective-dated tenant/outlet pricing policy;
+- idempotency fingerprint plus transaction advisory locks;
+- payment-provider intent boundary and signed normalized webhook;
+- exact quote, amount and provider-reference verification;
+- mandatory allergen acknowledgement;
+- atomic order, order-line, kitchen-task, milestone, event and outbox commit;
+- retry and tamper integration tests.
+
+### Remaining production acceptance and Step 4C
 
 - [ ] migrations pass from empty and current schema on real PostgreSQL CI;
 - [x] malicious cross-tenant reads and relationships fail in integration tests;
@@ -1086,10 +1098,11 @@ It should be split into two reviewable commits/PRs.
 - [x] an expired or already-consumed quote cannot be ordered;
 - [x] money is calculated and constrained in paise;
 - [x] accepted recipe/modifier snapshots cannot be changed on placed lines;
-- [ ] quote and checkout endpoints calculate only from server-side catalog facts;
-- [ ] signed provider verification and reconciliation are implemented;
-- [ ] every committed quote/payment/order fact writes its outbox event in the
+- [x] quote and checkout endpoints calculate only from server-side catalog facts;
+- [x] signed normalized provider verification is implemented;
+- [x] every committed quote/payment/order fact writes its outbox event in the
   same transaction;
+- [ ] the chosen live gateway adapter and reconciliation job are certified;
 - [ ] retry and true concurrent checkout tests pass on real PostgreSQL;
 - [ ] rollback/forward-fix and release evidence exist.
 

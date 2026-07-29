@@ -67,6 +67,26 @@ The persisted commerce foundation now includes:
 - PostgreSQL-compatible migration integration coverage for isolation,
   immutability, quote consumption and concurrent-version conflicts.
 
+### Step 4B — quote, payment and checkout API
+
+The transactional customer checkout path now provides:
+
+- `POST /api/v1/customer/quotes` with authenticated, server-calculated prices;
+- effective-dated outlet pricing policies for tax, delivery and packaging fees;
+- request fingerprints and advisory locks for safe idempotent retries;
+- `POST /api/v1/customer/payments/intents` through an explicit provider adapter;
+- signed, normalized payment webhooks with amount and provider-reference checks;
+- production startup rejection of the development payment provider;
+- `POST /api/v1/customer/checkout` requiring an exact verified payment;
+- mandatory acknowledgement of the accepted allergen snapshot;
+- single-transaction order, immutable lines, kitchen tasks and first milestone;
+- matching event-ledger and outbox facts committed with the commercial records;
+- safe schema upgrade for quotes and payments created before Step 4B.
+
+The built-in HTTP adapter is a low-cost normalization boundary. Before a live
+launch, map it to the selected gateway, certify its webhook fields/signature
+rules and run the concurrency suite against real PostgreSQL.
+
 ## Commands
 
 ```bash
@@ -92,7 +112,7 @@ configured.
 
 ## Next step
 
-Build Step 4B: server-calculated quote and payment-verification APIs, then
-commit the order, its immutable lines and its outbox events in one idempotent
-database transaction. The customer checkout must remain on its current adapter
-until that API passes provider, retry and real-PostgreSQL concurrency tests.
+Build Step 4C: kitchen-task operations, append-only customer milestones, an SSE
+tracking stream and the customer tracking adapter. Keep the current browser
+checkout adapter in place until real-PostgreSQL concurrency CI and the selected
+payment-provider certification pass.

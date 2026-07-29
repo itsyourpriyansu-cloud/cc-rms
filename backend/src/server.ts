@@ -5,6 +5,11 @@ import {
   createOtpProvider,
   readAuthConfig,
 } from './auth/index.js';
+import {
+  CommerceService,
+  createPaymentProvider,
+  readPaymentConfig,
+} from './commerce/index.js';
 import { createDatabasePool } from './database/index.js';
 
 const ServerEnvironmentSchema = z.object({
@@ -15,14 +20,20 @@ const ServerEnvironmentSchema = z.object({
 const start = async (): Promise<void> => {
   const serverConfig = ServerEnvironmentSchema.parse(process.env);
   const authConfig = readAuthConfig();
+  const paymentConfig = readPaymentConfig();
   const pool = createDatabasePool();
   const authService = new CustomerAuthService(
     pool,
     authConfig,
     createOtpProvider(authConfig),
   );
+  const commerceService = new CommerceService(
+    pool,
+    createPaymentProvider(paymentConfig),
+  );
   const app = await buildApp({
     authService,
+    commerceService,
     authConfig,
     logger: true,
   });

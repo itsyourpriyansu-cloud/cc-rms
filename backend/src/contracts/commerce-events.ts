@@ -25,6 +25,23 @@ export const PaymentVerifiedEventDataSchema = z.object({
   providerReference: z.string().trim().min(1).max(160),
 });
 
+export const PaymentIntentCreatedEventDataSchema = z.object({
+  paymentIntentId: PaymentIntentIdSchema,
+  quoteId: QuoteIdSchema,
+  amountPaise: z.number().int().nonnegative(),
+  provider: z.string().trim().min(2).max(40),
+  providerIntentReference: z.string().trim().min(1).max(160),
+});
+
+export const PaymentFailedEventDataSchema = z.object({
+  paymentIntentId: PaymentIntentIdSchema,
+  quoteId: QuoteIdSchema,
+  amountPaise: z.number().int().nonnegative(),
+  provider: z.string().trim().min(2).max(40),
+  providerReference: z.string().trim().min(1).max(160),
+  failureCode: z.string().trim().min(1).max(100),
+});
+
 export const OrderPlacedEventDataSchema = z.object({
   orderId: OrderIdSchema,
   quoteId: QuoteIdSchema,

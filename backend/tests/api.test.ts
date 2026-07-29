@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/api/app.js';
 import { AuthError, type AuthConfig } from '../src/auth/index.js';
 import type { CustomerAuthService } from '../src/auth/service.js';
+import { CommerceError, type CommerceService } from '../src/commerce/index.js';
 
 const authConfig: AuthConfig = {
   nodeEnv: 'test',
@@ -51,6 +52,31 @@ const createAuthService = () =>
   }) satisfies Pick<
     CustomerAuthService,
     'requestOtp' | 'verifyOtp' | 'authenticate' | 'revokeSession' | 'updateProfile'
+  >;
+
+const createCommerceService = () =>
+  ({
+    createQuote: vi.fn().mockResolvedValue({
+      id: 'qte_demo01',
+      status: 'active',
+      pricing: { totalPaise: 32_500 },
+    }),
+    createPaymentIntent: vi.fn().mockResolvedValue({
+      id: 'pay_demo01',
+      status: 'pending',
+    }),
+    applyPaymentWebhook: vi.fn().mockResolvedValue({
+      accepted: true,
+      duplicate: false,
+    }),
+    checkout: vi.fn().mockResolvedValue({
+      id: 'ord_demo01',
+      status: 'placed',
+      duplicate: false,
+    }),
+  }) satisfies Pick<
+    CommerceService,
+    'createQuote' | 'createPaymentIntent' | 'applyPaymentWebhook' | 'checkout'
   >;
 
 describe('customer authentication API', () => {
@@ -149,5 +175,135 @@ describe('customer authentication API', () => {
         message: 'Your session has expired',
       },
     });
+  });
+});
+
+describe('customer commerce API', () => {
+  const applications: Awaited<ReturnType<typeof buildApp>>[] = [];
+
+  afterEach(async () => {
+    await Promise.all(applications.splice(0).map((app) => app.close()));
+  });
+
+  it('authenticates and validates a server-priced quote request', async () => {
+    const authService = createAuthService();
+    const commerceService = createCommerceService();
+    const app = await buildApp({ authService, commerceService, authConfig });
+    applications.push(app);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/customer/quotes',
+      headers: {
+        cookie: 'rms_customer_session=opaque-session',
+        'x-rms-client': 'customer-web',
+      },
+      payload: {
+        outletId: 'out_demo01',
+        idempotencyKey: 'quote-request-demo-0001',
+        fulfilment: { type: 'pickup' },
+        lines: [
+          {
+            itemId: 'itm_demo01',
+            quantity: 1,
+            modifierOptionIds: [],
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().quote.id).toBe('qte_demo01');
+    expect(authService.authenticate).toHaveBeenCalledWith('opaque-session');
+    expect(commerceService.createQuote).toHaveBeenCalledOnce();
+  });
+
+  it('rejects checkout before invoking commerce when request data is invalid', async () => {
+    const authService = createAuthService();
+    const commerceService = createCommerceService();
+    const app = await buildApp({ authService, commerceService, authConfig });
+    applications.push(app);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/customer/checkout',
+      headers: { 'x-rms-client': 'customer-web' },
+      payload: {
+        quoteId: 'invalid',
+        paymentIntentId: 'invalid',
+        idempotencyKey: 'checkout-request-demo-01',
+        allergenAcknowledgements: {},
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('VALIDATION_ERROR');
+    expect(commerceService.checkout).not.toHaveBeenCalled();
+  });
+
+  it('returns stable commerce conflicts without leaking database details', async () => {
+    const authService = createAuthService();
+    const commerceService = createCommerceService();
+    commerceService.createPaymentIntent.mockRejectedValue(
+      new CommerceError(
+        'QUOTE_UNAVAILABLE',
+        409,
+        'The quote has expired or is no longer available',
+      ),
+    );
+    const app = await buildApp({ authService, commerceService, authConfig });
+    applications.push(app);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/customer/payments/intents',
+      headers: { 'x-rms-client': 'customer-web' },
+      payload: {
+        quoteId: 'qte_demo01',
+        idempotencyKey: 'payment-request-demo-01',
+      },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      success: false,
+      error: {
+        code: 'QUOTE_UNAVAILABLE',
+        message: 'The quote has expired or is no longer available',
+      },
+    });
+  });
+
+  it('forwards the signed provider webhook through the payment boundary', async () => {
+    const authService = createAuthService();
+    const commerceService = createCommerceService();
+    const app = await buildApp({ authService, commerceService, authConfig });
+    applications.push(app);
+
+    const body = {
+      eventId: 'provider-event-demo-01',
+      type: 'payment.verified',
+      tenantId: 'ten_demo01',
+      outletId: 'out_demo01',
+      providerIntentReference: 'provider-intent-demo-01',
+      providerPaymentReference: 'provider-payment-demo-01',
+      amountPaise: 32_500,
+      currency: 'INR',
+      occurredAt: '2026-07-29T18:30:00.000Z',
+    };
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/payments/webhooks/development',
+      headers: { 'x-rms-payment-signature': 'sha256=signed' },
+      payload: body,
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(commerceService.applyPaymentWebhook).toHaveBeenCalledWith(
+      'development',
+      body,
+      'sha256=signed',
+      expect.objectContaining({ correlationId: expect.any(String) }),
+    );
   });
 });

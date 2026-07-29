@@ -15,6 +15,13 @@ import {
   VerifyOtpBodySchema,
   type AuthConfig,
 } from '../auth/index.js';
+import {
+  CheckoutBodySchema,
+  CommerceError,
+  CommerceService,
+  CreatePaymentIntentBodySchema,
+  CreateQuoteBodySchema,
+} from '../commerce/index.js';
 
 const SESSION_COOKIE = 'rms_customer_session';
 
@@ -22,6 +29,10 @@ type BuildAppOptions = {
   authService: Pick<
     CustomerAuthService,
     'requestOtp' | 'verifyOtp' | 'authenticate' | 'revokeSession' | 'updateProfile'
+  >;
+  commerceService?: Pick<
+    CommerceService,
+    'createQuote' | 'createPaymentIntent' | 'applyPaymentWebhook' | 'checkout'
   >;
   authConfig: AuthConfig;
   logger?: boolean;
@@ -65,6 +76,7 @@ const clearSessionCookie = (reply: FastifyReply, secure: boolean): void => {
 
 export const buildApp = async ({
   authService,
+  commerceService,
   authConfig,
   logger = false,
 }: BuildAppOptions): Promise<FastifyInstance> => {
@@ -180,6 +192,80 @@ export const buildApp = async ({
     return { success: true, customer };
   });
 
+  if (commerceService) {
+    app.post('/api/v1/customer/quotes', async (request, reply) => {
+      requireCustomerClient(request);
+      const authenticated = await authService.authenticate(
+        request.cookies[SESSION_COOKIE],
+      );
+      const body = CreateQuoteBodySchema.parse(request.body);
+      const quote = await commerceService.createQuote(
+        authenticated,
+        body,
+        requestMetadata(request),
+      );
+      return reply.code(201).send({ success: true, quote });
+    });
+
+    app.post('/api/v1/customer/payments/intents', async (request, reply) => {
+      requireCustomerClient(request);
+      const authenticated = await authService.authenticate(
+        request.cookies[SESSION_COOKIE],
+      );
+      const body = CreatePaymentIntentBodySchema.parse(request.body);
+      const paymentIntent = await commerceService.createPaymentIntent(
+        authenticated,
+        body,
+        requestMetadata(request),
+      );
+      return reply.code(201).send({ success: true, paymentIntent });
+    });
+
+    app.post('/api/v1/customer/checkout', async (request, reply) => {
+      requireCustomerClient(request);
+      const authenticated = await authService.authenticate(
+        request.cookies[SESSION_COOKIE],
+      );
+      const body = CheckoutBodySchema.parse(request.body);
+      const order = await commerceService.checkout(
+        authenticated,
+        body,
+        requestMetadata(request),
+      );
+      return reply.code(order.duplicate === true ? 200 : 201).send({
+        success: true,
+        order,
+      });
+    });
+
+    app.post<{
+      Params: { provider: string };
+    }>(
+      '/api/v1/payments/webhooks/:provider',
+      {
+        config: {
+          rateLimit: {
+            max: 300,
+            timeWindow: '1 minute',
+          },
+        },
+      },
+      async (request, reply) => {
+        const suppliedSignature = request.headers['x-rms-payment-signature'];
+        const signature = Array.isArray(suppliedSignature)
+          ? suppliedSignature[0]
+          : suppliedSignature;
+        const result = await commerceService.applyPaymentWebhook(
+          request.params.provider,
+          request.body,
+          signature,
+          requestMetadata(request),
+        );
+        return reply.code(202).send({ success: true, ...result });
+      },
+    );
+  }
+
   app.setNotFoundHandler((_request, reply) =>
     reply.code(404).send({
       success: false,
@@ -200,6 +286,16 @@ export const buildApp = async ({
           ...(error.retryAfterSeconds
             ? { retryAfterSeconds: error.retryAfterSeconds }
             : {}),
+        },
+      });
+    }
+
+    if (error instanceof CommerceError) {
+      return reply.code(error.statusCode).send({
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
         },
       });
     }

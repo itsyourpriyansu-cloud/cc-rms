@@ -42,6 +42,10 @@ describe('PostgreSQL foundation migration', () => {
       resolve(process.cwd(), 'migrations/0003_order_foundation.sql'),
       'utf8',
     );
+    const checkoutApiMigration = await readFile(
+      resolve(process.cwd(), 'migrations/0004_checkout_api.sql'),
+      'utf8',
+    );
 
     await database.exec(foundationMigration);
     await database.exec(authMigration);
@@ -304,6 +308,10 @@ describe('PostgreSQL foundation migration', () => {
       GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO rms_application;
       GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO rms_application;
     `);
+    await database.exec(checkoutApiMigration);
+    await database.exec(`
+      GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO rms_application;
+    `);
   });
 
   afterAll(async () => {
@@ -346,6 +354,39 @@ describe('PostgreSQL foundation migration', () => {
     ]);
   });
 
+  it('upgrades existing quote and payment rows without mutating lifecycle state', async () => {
+    const result = await database.query<{
+      quote_fingerprint: string;
+      quote_status: string;
+      quote_version: number;
+      payment_fingerprint: string;
+      payment_status: string;
+      payment_version: number;
+    }>(`
+      SELECT
+        quote.request_fingerprint AS quote_fingerprint,
+        quote.status AS quote_status,
+        quote.version AS quote_version,
+        payment.request_fingerprint AS payment_fingerprint,
+        payment.status AS payment_status,
+        payment.version AS payment_version
+      FROM checkout_quotes quote
+      JOIN payment_intents payment
+        ON payment.tenant_id = quote.tenant_id
+       AND payment.quote_id = quote.id
+      WHERE quote.id = 'qte_alpha01'
+    `);
+
+    expect(result.rows[0]).toEqual({
+      quote_fingerprint: 'legacy-request-unavailable',
+      quote_status: 'active',
+      quote_version: 1,
+      payment_fingerprint: 'legacy-request-unavailable',
+      payment_status: 'verified',
+      payment_version: 1,
+    });
+  });
+
   it('forces row-level security for OTP and session records', async () => {
     const result = await database.query<{
       relname: string;
@@ -385,6 +426,7 @@ describe('PostgreSQL foundation migration', () => {
         FROM pg_class
         WHERE relname IN (
           'menu_items',
+          'commerce_pricing_policies',
           'checkout_quotes',
           'payment_intents',
           'kitchen_tasks',
@@ -395,7 +437,7 @@ describe('PostgreSQL foundation migration', () => {
       `,
     );
 
-    expect(result.rows).toHaveLength(6);
+    expect(result.rows).toHaveLength(7);
     expect(
       result.rows.every(
         (row) => row.relrowsecurity && row.relforcerowsecurity,
