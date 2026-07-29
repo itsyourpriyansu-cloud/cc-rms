@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bike, ChevronRight, Heart, LogOut, MapPin, ShieldCheck, SlidersHorizontal, UserRound } from 'lucide-react';
+import { Bike, CalendarDays, ChevronRight, Heart, LogOut, MapPin, ShieldCheck, SlidersHorizontal, UserRound } from 'lucide-react';
 import BottomNavBar from '../../components/layout/BottomNavBar';
 import TopAppBar from '../../components/layout/TopAppBar';
 import { useCustomerSession } from '../../context/CustomerSessionContext';
@@ -9,7 +9,7 @@ import { useToast } from '../../context/ToastContext';
 const CustomerAccountScreen = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { auth, profile, fulfillment, updateProfile, signOut } = useCustomerSession();
+  const { auth, profile, fulfillment, mealPlan, updateProfile, signOut } = useCustomerSession();
   const [form, setForm] = useState({
     firstName: profile?.firstName || '',
     dietaryPreference: profile?.dietaryPreference || 'NO_PREFERENCE',
@@ -66,6 +66,24 @@ const CustomerAccountScreen = () => {
             </span>
             <span className="text-[11px] text-[#705F58] truncate block">
               {fulfillment.type === 'DELIVERY' ? fulfillment.addressLine || 'Add delivery address' : 'Central Hyderabad pickup counter'}
+            </span>
+          </span>
+          <ChevronRight className="w-4 h-4 text-[#95847C]" />
+        </button>
+
+        <button
+          onClick={() => navigate('/meal-pass')}
+          className="w-full bg-white rounded-2xl border border-[#EADFD6] p-4 flex items-center gap-3 text-left shadow-sm"
+        >
+          <span className="w-10 h-10 rounded-xl bg-[#FFF0E3] text-[#A30F3B] flex items-center justify-center shrink-0">
+            <CalendarDays className="w-5 h-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="text-xs font-bold text-[#211917] block">Mangamma Meal Pass</span>
+            <span className="text-[11px] text-[#705F58] truncate block">
+              {mealPlan && mealPlan.status !== 'CANCELLED'
+                ? `${mealPlan.planTitle} • ${mealPlan.status.toLowerCase()}`
+                : 'Create a flexible recurring meal routine'}
             </span>
           </span>
           <ChevronRight className="w-4 h-4 text-[#95847C]" />

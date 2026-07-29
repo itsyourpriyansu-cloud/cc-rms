@@ -5,10 +5,12 @@ import {
   getStoredCustomerAuth,
   getStoredCustomerFavourites,
   getStoredCustomerFulfillment,
+  getStoredCustomerMealPlan,
   getStoredCustomerProfile,
   setStoredCustomerAuth,
   setStoredCustomerFavourites,
   setStoredCustomerFulfillment,
+  setStoredCustomerMealPlan,
   setStoredCustomerProfile,
 } from '../utils/storage';
 
@@ -71,6 +73,9 @@ export const CustomerSessionProvider = ({ children }) => {
   const [favouriteDishIds, setFavouriteDishIds] = useState(() =>
     auth?.phone ? getStoredCustomerFavourites(auth.phone) : []
   );
+  const [mealPlan, setMealPlan] = useState(() =>
+    auth?.phone ? getStoredCustomerMealPlan(auth.phone) : null
+  );
 
   const requestOtp = (phone) => customerAuthService.requestOtp(phone);
 
@@ -95,6 +100,7 @@ export const CustomerSessionProvider = ({ children }) => {
     setProfile(nextProfile);
     setFulfillment(savedFulfillment);
     setFavouriteDishIds(getStoredCustomerFavourites(phone));
+    setMealPlan(getStoredCustomerMealPlan(phone));
     return nextAuth;
   };
 
@@ -137,12 +143,42 @@ export const CustomerSessionProvider = ({ children }) => {
     return isFavourite;
   };
 
+  const saveMealPlan = (nextPlan) => {
+    if (!auth?.phone) return null;
+    const persistedPlan = {
+      ...nextPlan,
+      phone: auth.phone,
+      updatedAt: new Date().toISOString(),
+    };
+    setMealPlan(persistedPlan);
+    setStoredCustomerMealPlan(auth.phone, persistedPlan);
+    return persistedPlan;
+  };
+
+  const updateMealPlan = (updates) => {
+    if (!mealPlan) return null;
+    return saveMealPlan({
+      ...mealPlan,
+      ...updates,
+    });
+  };
+
+  const updateScheduledMeal = (mealId, updates) => {
+    if (!mealPlan) return null;
+    return updateMealPlan({
+      upcomingMeals: (mealPlan.upcomingMeals || []).map((meal) =>
+        meal.id === mealId ? { ...meal, ...updates, updatedAt: new Date().toISOString() } : meal
+      ),
+    });
+  };
+
   const signOut = () => {
     clearStoredCustomerAuth();
     setAuth(null);
     setProfile(null);
     setFulfillment(buildFulfillment());
     setFavouriteDishIds([]);
+    setMealPlan(null);
   };
 
   const hasFulfillmentDetails = useMemo(() => {
@@ -167,6 +203,7 @@ export const CustomerSessionProvider = ({ children }) => {
         profile,
         fulfillment,
         favouriteDishIds,
+        mealPlan,
         isAuthenticated: Boolean(auth?.phone),
         hasFulfillmentDetails,
         fulfillmentSummary,
@@ -175,6 +212,9 @@ export const CustomerSessionProvider = ({ children }) => {
         updateProfile,
         updateFulfillment,
         toggleFavouriteDish,
+        saveMealPlan,
+        updateMealPlan,
+        updateScheduledMeal,
         signOut,
       }}
     >

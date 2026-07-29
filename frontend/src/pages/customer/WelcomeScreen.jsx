@@ -6,6 +6,7 @@ import {
   Bike,
   ChevronRight,
   Clock3,
+  CalendarDays,
   Navigation,
   PackageCheck,
   ShieldCheck,
@@ -67,7 +68,7 @@ const PopularDishCard = ({ dish, onPress }) => {
 
 const WelcomeScreen = () => {
   const navigate = useNavigate();
-  const { profile, fulfillment, hasFulfillmentDetails } = useCustomerSession();
+  const { profile, fulfillment, hasFulfillmentDetails, mealPlan } = useCustomerSession();
   const { kitchenLoad, activeOrder } = useOrder();
   const [trustOpen, setTrustOpen] = useState(false);
   const [heroFailed, setHeroFailed] = useState(false);
@@ -189,6 +190,34 @@ const WelcomeScreen = () => {
             <ChevronRight className="w-4 h-4 text-emerald-700" />
           </button>
         )}
+
+        <button
+          onClick={() => navigate('/meal-pass')}
+          className="mx-4 mt-4 w-[calc(100%-32px)] rounded-[22px] bg-gradient-to-br from-[#FBECEF] to-[#FFF0E3] border border-[#E7C8D2] p-4 text-left shadow-sm overflow-hidden relative"
+        >
+          <span className="absolute -right-7 -top-8 w-24 h-24 rounded-full bg-[#A30F3B]/5" />
+          <span className="relative flex items-center gap-3">
+            <span className="w-12 h-12 rounded-2xl bg-[#A30F3B] text-white flex items-center justify-center shrink-0">
+              <CalendarDays className="w-6 h-6" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="text-[10px] uppercase tracking-wider font-black text-[#F47712] block">
+                {mealPlan && mealPlan.status !== 'CANCELLED' ? 'Your Meal Pass' : 'New • Mangamma Meal Pass'}
+              </span>
+              <span className="font-black text-[#211917] block mt-0.5">
+                {mealPlan && mealPlan.status !== 'CANCELLED'
+                  ? `${mealPlan.mealCount} meal routine • ${mealPlan.status.toLowerCase()}`
+                  : 'Plan your week. Skip or pause anytime.'}
+              </span>
+              <span className="text-[11px] text-[#6E5F58] block mt-1">
+                {mealPlan && mealPlan.status !== 'CANCELLED'
+                  ? `${mealPlan.upcomingMeals?.filter((meal) => meal.status === 'SCHEDULED').length || 0} meals scheduled`
+                  : 'From ₹199 per meal with flexible delivery days'}
+              </span>
+            </span>
+            <ChevronRight className="w-5 h-5 text-[#A30F3B]" />
+          </span>
+        </button>
 
         <section className="px-4 mt-7">
           <div className="flex items-end justify-between gap-3 mb-3">

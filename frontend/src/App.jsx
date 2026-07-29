@@ -36,6 +36,7 @@ import CustomerLoginScreen from './pages/customer/CustomerLoginScreen';
 import FulfillmentSetupScreen from './pages/customer/FulfillmentSetupScreen';
 import CustomerAccountScreen from './pages/customer/CustomerAccountScreen';
 import CustomerOrdersScreen from './pages/customer/CustomerOrdersScreen';
+import MealPassScreen from './pages/customer/MealPassScreen';
 
 const CustomerRouteGate = ({ children }) => {
   const location = useLocation();
@@ -105,6 +106,7 @@ function App() {
                           <Route path="/delivery-details" element={<FulfillmentSetupScreen />} />
                           <Route path="/account" element={<CustomerAccountScreen />} />
                           <Route path="/orders" element={<CustomerOrdersScreen />} />
+                          <Route path="/meal-pass" element={<MealPassScreen />} />
                           <Route path="/menu" element={<MenuScreen />} />
                           <Route path="/menu/:id" element={<FoodDetailsScreen />} />
                           <Route path="/cart" element={<CartScreen />} />

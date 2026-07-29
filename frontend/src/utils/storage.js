@@ -13,6 +13,7 @@ const CUSTOMER_PROFILES_KEY = 'rms_customer_profiles';
 const CUSTOMER_FULFILLMENT_KEY = 'rms_customer_fulfillment';
 const CUSTOMER_FAVOURITES_KEY = 'rms_customer_favourites';
 const CUSTOMER_ORDERS_KEY = 'rms_customer_orders';
+const CUSTOMER_MEAL_PLANS_KEY = 'rms_customer_meal_plans';
 
 const readJson = (key, fallback = null) => {
   try {
@@ -92,6 +93,19 @@ export const setStoredCustomerOrders = (phone, orders) => {
   writeJson(CUSTOMER_ORDERS_KEY, {
     ...records,
     [phone]: orders,
+  });
+};
+
+export const getStoredCustomerMealPlan = (phone) => {
+  const records = readJson(CUSTOMER_MEAL_PLANS_KEY, {});
+  return records[phone] || null;
+};
+
+export const setStoredCustomerMealPlan = (phone, mealPlan) => {
+  const records = readJson(CUSTOMER_MEAL_PLANS_KEY, {});
+  writeJson(CUSTOMER_MEAL_PLANS_KEY, {
+    ...records,
+    [phone]: mealPlan,
   });
 };
 
@@ -542,7 +556,6 @@ export const setStoredCouponRequests = (requests) => {
     console.error("Error saving coupon requests", e);
   }
 };
-
 
 
 
