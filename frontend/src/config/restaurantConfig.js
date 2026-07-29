@@ -2,6 +2,8 @@ export const restaurantConfig = {
   // Brand identity — the single source of truth for restaurant name/branding.
   // Every module should read from here instead of hardcoding restaurant strings.
   id: 'MANGAMMA-RUCHULU',
+  tenantId: import.meta.env.VITE_TENANT_ID || 'ten_mangamma01',
+  outletId: import.meta.env.VITE_OUTLET_ID || 'out_hyderabad01',
   name: 'Mangamma Ruchulu',
   nativeName: 'మంగమ్మ రుచులు',
   parentCompany: 'Lakshya Foodways',

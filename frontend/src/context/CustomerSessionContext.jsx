@@ -1,13 +1,11 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { customerAuthService } from '../services/customerAuthService';
 import {
   clearStoredCustomerAuth,
-  getStoredCustomerAuth,
   getStoredCustomerFavourites,
   getStoredCustomerFulfillment,
   getStoredCustomerMealPlan,
   getStoredCustomerProfile,
-  setStoredCustomerAuth,
   setStoredCustomerFavourites,
   setStoredCustomerFulfillment,
   setStoredCustomerMealPlan,
@@ -62,60 +60,89 @@ const buildFulfillment = (value = {}) => {
   };
 };
 
+const buildCustomerProfile = (serverProfile, savedProfile = {}) => ({
+  dietaryPreference: 'NO_PREFERENCE',
+  spicePreference: 'MEDIUM',
+  allergies: [],
+  avoidedIngredients: [],
+  vegetarianDays: [],
+  usualOrderTime: '20:00',
+  typicalBudget: 350,
+  portionPreference: 'REGULAR',
+  favouritePairing: 'Raita',
+  mealReminders: true,
+  dropAlerts: true,
+  familyMembers: [],
+  loyaltyPoints: 260,
+  loyaltyCredits: 0,
+  marketingConsent: false,
+  createdAt: new Date().toISOString(),
+  ...savedProfile,
+  ...serverProfile,
+});
+
 export const CustomerSessionProvider = ({ children }) => {
-  const [auth, setAuth] = useState(() => getStoredCustomerAuth());
-  const [profile, setProfile] = useState(() =>
-    auth?.phone ? getStoredCustomerProfile(auth.phone) : null
-  );
-  const [fulfillment, setFulfillment] = useState(() =>
-    auth?.phone ? buildFulfillment(getStoredCustomerFulfillment(auth.phone) || {}) : buildFulfillment()
-  );
-  const [favouriteDishIds, setFavouriteDishIds] = useState(() =>
-    auth?.phone ? getStoredCustomerFavourites(auth.phone) : []
-  );
-  const [mealPlan, setMealPlan] = useState(() =>
-    auth?.phone ? getStoredCustomerMealPlan(auth.phone) : null
-  );
+  const [auth, setAuth] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [fulfillment, setFulfillment] = useState(() => buildFulfillment());
+  const [favouriteDishIds, setFavouriteDishIds] = useState([]);
+  const [mealPlan, setMealPlan] = useState(null);
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
+
+  const applyServerSession = useCallback((session, serverProfile) => {
+    const phone = session.phone || serverProfile.phone;
+    const nextProfile = buildCustomerProfile(
+      { ...serverProfile, phone },
+      getStoredCustomerProfile(phone) || {}
+    );
+
+    setAuth({ ...session, phone, e164: session.e164 || serverProfile.e164 });
+    setProfile(nextProfile);
+    setFulfillment(buildFulfillment(getStoredCustomerFulfillment(phone) || {}));
+    setFavouriteDishIds(getStoredCustomerFavourites(phone));
+    setMealPlan(getStoredCustomerMealPlan(phone));
+    setStoredCustomerProfile(phone, nextProfile);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    customerAuthService
+      .getSession()
+      .then((response) => {
+        if (!active || !response) return;
+        applyServerSession(response.data.session, response.data.profile);
+      })
+      .catch(() => {
+        if (!active) return;
+        setAuth(null);
+        setProfile(null);
+      })
+      .finally(() => {
+        if (active) setIsSessionLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [applyServerSession]);
 
   const requestOtp = (phone) => customerAuthService.requestOtp(phone);
 
   const verifyOtp = async ({ phone, otp, requestId, firstName }) => {
-    const response = await customerAuthService.verifyOtp({ phone, otp, requestId });
-    const nextAuth = response.data.session;
-    const savedProfile = getStoredCustomerProfile(phone);
-    const nextProfile = savedProfile || {
-      firstName: String(firstName || 'Guest').trim(),
+    const response = await customerAuthService.verifyOtp({
       phone,
-      dietaryPreference: 'NO_PREFERENCE',
-      spicePreference: 'MEDIUM',
-      allergies: [],
-      vegetarianDays: [],
-      usualOrderTime: '20:00',
-      typicalBudget: 350,
-      portionPreference: 'REGULAR',
-      favouritePairing: 'Raita',
-      mealReminders: true,
-      dropAlerts: true,
-      familyMembers: [],
-      loyaltyPoints: 260,
-      loyaltyCredits: 0,
-      marketingConsent: false,
-      createdAt: new Date().toISOString(),
-    };
-    const savedFulfillment = buildFulfillment(getStoredCustomerFulfillment(phone) || {});
-
-    setStoredCustomerAuth(nextAuth);
-    setStoredCustomerProfile(phone, nextProfile);
-    setAuth(nextAuth);
-    setProfile(nextProfile);
-    setFulfillment(savedFulfillment);
-    setFavouriteDishIds(getStoredCustomerFavourites(phone));
-    setMealPlan(getStoredCustomerMealPlan(phone));
-    return nextAuth;
+      otp,
+      requestId,
+      firstName,
+    });
+    applyServerSession(response.data.session, response.data.profile);
+    return response.data.session;
   };
 
-  const updateProfile = (updates) => {
+  const updateProfile = async (updates) => {
     if (!auth?.phone) return;
+    const previousProfile = profile;
     const nextProfile = {
       ...profile,
       ...updates,
@@ -124,6 +151,30 @@ export const CustomerSessionProvider = ({ children }) => {
     };
     setProfile(nextProfile);
     setStoredCustomerProfile(auth.phone, nextProfile);
+
+    const supportedUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([key]) =>
+        ['firstName', 'dietaryPreference', 'spicePreference', 'allergies', 'marketingConsent'].includes(key)
+      )
+    );
+    if (Object.keys(supportedUpdates).length === 0) return nextProfile;
+
+    try {
+      const response = await customerAuthService.updateProfile(supportedUpdates);
+      const persistedProfile = {
+        ...nextProfile,
+        ...response.data,
+        phone: auth.phone,
+        updatedAt: new Date().toISOString(),
+      };
+      setProfile(persistedProfile);
+      setStoredCustomerProfile(auth.phone, persistedProfile);
+      return persistedProfile;
+    } catch (error) {
+      setProfile(previousProfile);
+      setStoredCustomerProfile(auth.phone, previousProfile);
+      throw error;
+    }
   };
 
   const updateFulfillment = (updates) => {
@@ -182,13 +233,17 @@ export const CustomerSessionProvider = ({ children }) => {
     });
   };
 
-  const signOut = () => {
-    clearStoredCustomerAuth();
-    setAuth(null);
-    setProfile(null);
-    setFulfillment(buildFulfillment());
-    setFavouriteDishIds([]);
-    setMealPlan(null);
+  const signOut = async () => {
+    try {
+      await customerAuthService.signOut();
+    } finally {
+      clearStoredCustomerAuth();
+      setAuth(null);
+      setProfile(null);
+      setFulfillment(buildFulfillment());
+      setFavouriteDishIds([]);
+      setMealPlan(null);
+    }
   };
 
   const hasFulfillmentDetails = useMemo(() => {
@@ -214,6 +269,7 @@ export const CustomerSessionProvider = ({ children }) => {
         fulfillment,
         favouriteDishIds,
         mealPlan,
+        isSessionLoading,
         isAuthenticated: Boolean(auth?.phone),
         hasFulfillmentDetails,
         fulfillmentSummary,

@@ -22,7 +22,7 @@ each completed step.
   action receipt are implemented as tested TypeScript contracts.
 - [x] **Step 2 — PostgreSQL foundation:** migrations, tenant isolation,
   transaction boundaries and event outbox.
-- [ ] **Step 3 — Phone authentication API:** OTP provider boundary, secure
+- [x] **Step 3 — Phone authentication API:** OTP provider boundary, secure
   sessions and customer migration from browser-only storage.
 - [ ] **Step 4 — Order vertical slice:** persisted checkout, kitchen tasks,
   order-risk projection and live tracking.

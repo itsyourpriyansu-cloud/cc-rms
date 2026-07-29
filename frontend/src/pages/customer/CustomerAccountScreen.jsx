@@ -10,6 +10,7 @@ const CustomerAccountScreen = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { auth, profile, fulfillment, mealPlan, updateProfile, signOut } = useCustomerSession();
+  const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
     firstName: profile?.firstName || '',
     dietaryPreference: profile?.dietaryPreference || 'NO_PREFERENCE',
@@ -18,20 +19,30 @@ const CustomerAccountScreen = () => {
     marketingConsent: Boolean(profile?.marketingConsent),
   });
 
-  const handleSave = () => {
-    updateProfile({
-      ...form,
-      allergies: form.allergies
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean),
-    });
-    showToast('Your preferences were updated', 'success');
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateProfile({
+        ...form,
+        allergies: form.allergies
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
+      });
+      showToast('Your preferences were securely updated', 'success');
+    } catch (error) {
+      showToast(error.message || 'Unable to update your preferences', 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSignOut = () => {
-    signOut();
-    navigate('/customer/login', { replace: true });
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } finally {
+      navigate('/customer/login', { replace: true });
+    }
   };
 
   return (
@@ -175,8 +186,12 @@ const CustomerAccountScreen = () => {
             </span>
           </label>
 
-          <button onClick={handleSave} className="w-full h-12 rounded-xl bg-[#E97818] text-white text-sm font-bold">
-            Save preferences
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="w-full h-12 rounded-xl bg-[#E97818] text-white text-sm font-bold disabled:opacity-60"
+          >
+            {isSaving ? 'Saving securely…' : 'Save preferences'}
           </button>
         </section>
 

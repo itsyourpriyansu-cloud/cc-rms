@@ -4,7 +4,6 @@ import { ArrowRight, CheckCircle2, LockKeyhole, ShieldCheck, UtensilsCrossed } f
 import PhoneNumberField from '../../components/common/PhoneNumberField';
 import PrimaryButton from '../../components/common/PrimaryButton';
 import { useCustomerSession } from '../../context/CustomerSessionContext';
-import { CUSTOMER_DEMO_OTP } from '../../services/customerAuthService';
 import { parseIndianMobile } from '../../utils/whatsapp';
 import { validateFirstName } from '../../utils/guestFieldValidation';
 import { restaurantConfig } from '../../config/restaurantConfig';
@@ -186,9 +185,12 @@ const CustomerLoginScreen = () => {
                 />
               </div>
 
-              <div className="rounded-xl bg-[#FFF0DE] border border-[#E97818]/25 p-3 text-xs text-[#6E0D25]">
-                <strong>Frontend demo:</strong> use OTP <strong>{CUSTOMER_DEMO_OTP}</strong>. Connect this adapter to a real SMS provider before production.
-              </div>
+              {otpRequest?.developmentOtp && (
+                <div className="rounded-xl bg-[#FFF0DE] border border-[#E97818]/25 p-3 text-xs text-[#6E0D25]">
+                  <strong>Local development:</strong> use OTP{' '}
+                  <strong>{otpRequest.developmentOtp}</strong>. This value is never returned in production.
+                </div>
+              )}
 
               {error && <p className="text-xs font-semibold text-red-700">{error}</p>}
 

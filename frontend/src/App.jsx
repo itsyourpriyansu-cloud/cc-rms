@@ -41,7 +41,18 @@ import CustomerExperienceScreen from './pages/customer/CustomerExperienceScreen'
 
 const CustomerRouteGate = ({ children }) => {
   const location = useLocation();
-  const { isAuthenticated } = useCustomerSession();
+  const { isAuthenticated, isSessionLoading } = useCustomerSession();
+
+  if (isSessionLoading) {
+    return (
+      <div className="min-h-screen bg-[#FFFDF9] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-[#8D1230]">
+          <div className="w-9 h-9 rounded-full border-4 border-[#F1D7DE] border-t-[#8D1230] animate-spin" />
+          <p className="text-xs font-bold">Restoring your secure session…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/customer/login" replace state={{ from: location.pathname }} />;

@@ -3,8 +3,10 @@ import axios from 'axios';
 // Create standard Axios instance ready for FastAPI backend connection
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
+    'X-RMS-Client': 'customer-web',
   },
   timeout: 10000,
 });

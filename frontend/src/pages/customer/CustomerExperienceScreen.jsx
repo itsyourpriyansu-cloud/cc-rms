@@ -219,17 +219,21 @@ const CustomerExperienceScreen = () => {
     }));
   };
 
-  const saveTasteGraph = () => {
-    updateProfile({
-      ...tasteForm,
-      typicalBudget: Number(tasteForm.typicalBudget) || 350,
-      allergies: tasteForm.allergies
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean),
-      tasteGraphUpdatedAt: new Date().toISOString(),
-    });
-    showToast('Your Taste Graph is updated across menu and Meal Pass', 'success');
+  const saveTasteGraph = async () => {
+    try {
+      await updateProfile({
+        ...tasteForm,
+        typicalBudget: Number(tasteForm.typicalBudget) || 350,
+        allergies: tasteForm.allergies
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
+        tasteGraphUpdatedAt: new Date().toISOString(),
+      });
+      showToast('Your Taste Graph is updated across menu and Meal Pass', 'success');
+    } catch (error) {
+      showToast(error.message || 'Unable to save your Taste Graph', 'error');
+    }
   };
 
   const handleFavourite = (dish) => {

@@ -1,18 +1,46 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
+import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { CustomerAuthService, type AuthConfig, type OtpProvider } from '../src/auth/index.js';
 
 describe('PostgreSQL foundation migration', () => {
   const database = new PGlite();
+  const client = {
+    async query<T extends QueryResultRow = QueryResultRow>(
+      text: string,
+      values?: unknown[],
+    ) {
+      if (text.includes('pg_advisory_xact_lock')) {
+        return { rows: [], rowCount: 1 };
+      }
+      const result = await database.query<T>(text, values);
+      return {
+        ...result,
+        rowCount: result.rows.length || result.affectedRows || 0,
+      };
+    },
+    release() {},
+  } as unknown as PoolClient;
+  const pool = {
+    async connect() {
+      return client;
+    },
+  } as unknown as Pool;
 
   beforeAll(async () => {
-    const migration = await readFile(
+    const foundationMigration = await readFile(
       resolve(process.cwd(), 'migrations/0001_maos_foundation.sql'),
       'utf8',
     );
+    const authMigration = await readFile(
+      resolve(process.cwd(), 'migrations/0002_customer_auth.sql'),
+      'utf8',
+    );
 
-    await database.exec(migration);
+    await database.exec(foundationMigration);
+    await database.exec(authMigration);
     await database.exec(`
       INSERT INTO tenants (id, legal_name, display_name, status)
       VALUES
@@ -56,15 +84,51 @@ describe('PostgreSQL foundation migration', () => {
         SELECT table_name AS name
         FROM information_schema.tables
         WHERE table_schema = 'public'
-          AND table_name IN ('orders', 'maos_events', 'outbox_events')
+          AND table_name IN (
+            'orders',
+            'maos_events',
+            'outbox_events',
+            'customer_otp_challenges',
+            'customer_sessions'
+          )
         ORDER BY table_name
       `,
     );
 
     expect(result.rows.map((row) => row.name)).toEqual([
+      'customer_otp_challenges',
+      'customer_sessions',
       'maos_events',
       'orders',
       'outbox_events',
+    ]);
+  });
+
+  it('forces row-level security for OTP and session records', async () => {
+    const result = await database.query<{
+      relname: string;
+      relrowsecurity: boolean;
+      relforcerowsecurity: boolean;
+    }>(
+      `
+        SELECT relname, relrowsecurity, relforcerowsecurity
+        FROM pg_class
+        WHERE relname IN ('customer_otp_challenges', 'customer_sessions')
+        ORDER BY relname
+      `,
+    );
+
+    expect(result.rows).toEqual([
+      {
+        relname: 'customer_otp_challenges',
+        relrowsecurity: true,
+        relforcerowsecurity: true,
+      },
+      {
+        relname: 'customer_sessions',
+        relrowsecurity: true,
+        relforcerowsecurity: true,
+      },
     ]);
   });
 
@@ -163,5 +227,72 @@ describe('PostgreSQL foundation migration', () => {
       "SELECT status, version FROM orders WHERE id = 'ord_alpha01'",
     );
     expect(result.rows).toEqual([{ status: 'placed', version: 2 }]);
+  });
+
+  it('completes OTP, session, profile and revocation against the migrated schema', async () => {
+    await database.exec('RESET ROLE');
+    const authConfig: AuthConfig = {
+      nodeEnv: 'test',
+      pepper: 'integration-pepper-that-is-longer-than-thirty-two-characters',
+      provider: 'development',
+      developmentOtp: '123456',
+      otpTtlSeconds: 300,
+      otpCooldownSeconds: 60,
+      otpMaxAttempts: 5,
+      sessionTtlDays: 30,
+      secureCookie: false,
+    };
+    const provider: OtpProvider = {
+      async send() {
+        return { providerReference: 'integration-message-1' };
+      },
+    };
+    const service = new CustomerAuthService(pool, authConfig, provider);
+    const metadata = {
+      ip: '127.0.0.1',
+      userAgent: 'integration-test',
+      correlationId: 'cor_auth_integration01',
+    };
+    const request = {
+      tenantId: 'ten_alpha01',
+      outletId: 'out_alpha01',
+      phone: '9123456789',
+    };
+
+    const challenge = await service.requestOtp(request, metadata);
+    expect(challenge.developmentOtp).toBe('123456');
+
+    const verification = await service.verifyOtp(
+      {
+        ...request,
+        requestId: challenge.requestId,
+        otp: '123456',
+        firstName: 'Mira',
+      },
+      metadata,
+    );
+    expect(verification.customer).toMatchObject({
+      phone: '9123456789',
+      firstName: 'Mira',
+    });
+
+    const authenticated = await service.authenticate(verification.sessionToken);
+    expect(authenticated.customerId).toBe(verification.customer.id);
+
+    const updated = await service.updateProfile(authenticated, {
+      dietaryPreference: 'vegetarian',
+      spicePreference: 'mild',
+      marketingConsent: true,
+    });
+    expect(updated).toMatchObject({
+      dietaryPreference: 'vegetarian',
+      spicePreference: 'mild',
+      marketingConsent: true,
+    });
+
+    await service.revokeSession(authenticated);
+    await expect(service.authenticate(verification.sessionToken)).rejects.toThrow(
+      'Your session has expired',
+    );
   });
 });
