@@ -23,7 +23,7 @@ const navTheme = {
 const NAV_ITEMS = [
   { label: 'Menu', path: '/menu', icon: BookOpen },
   { label: 'Cart', path: '/cart', icon: ShoppingBag },
-  { label: 'Orders', path: '/order-tracking', icon: ReceiptText },
+  { label: 'Orders', path: '/orders', icon: ReceiptText },
   { label: 'Account', path: '/account', icon: UserRound },
 ];
 
@@ -53,15 +53,20 @@ const BottomNavBar = () => {
           const isActive =
             location.pathname === item.path ||
             (item.path === '/menu' && location.pathname.startsWith('/menu/')) ||
-            (item.path === '/order-tracking' && location.pathname === '/order-confirmation');
+            (item.path === '/orders' &&
+              ['/order-confirmation', '/order-tracking', '/bill', '/payment'].includes(location.pathname));
 
           const cartBadge = item.path === '/cart' ? (totals?.itemCount || 0) : 0;
-          const hasActiveOrder = item.path === '/order-tracking' && !!activeOrder;
+          const activeOrderFinished =
+            activeOrder?.status === 'delivered' ||
+            activeOrder?.status === 'completed' ||
+            activeOrder?.stageIndex >= 4;
+          const hasActiveOrder = item.path === '/orders' && !!activeOrder && !activeOrderFinished;
 
           let ariaLabel = item.label;
           if (item.path === '/cart' && cartBadge > 0) {
             ariaLabel = `Cart, ${cartBadge} ${cartBadge === 1 ? 'item' : 'items'}`;
-          } else if (item.path === '/order-tracking' && hasActiveOrder) {
+          } else if (item.path === '/orders' && hasActiveOrder) {
             ariaLabel = 'Orders, active order in progress';
           }
 

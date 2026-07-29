@@ -1,4 +1,4 @@
-import api, { mockApiDelay } from './api';
+import { mockApiDelay } from './api';
 import { formatInvoiceAmount, formatDateTime } from '../utils/formatters';
 import { restaurantConfig } from '../config/restaurantConfig';
 import { RESTAURANT_INFO } from '../utils/mockData';
@@ -13,6 +13,7 @@ export const paymentService = {
         success: true,
         transactionId,
         paymentMethod: paymentDetails.method,
+        paymentProvider: paymentDetails.provider || null,
         amount: paymentDetails.amount,
         timestamp: new Date().toISOString(),
       }, 1500);

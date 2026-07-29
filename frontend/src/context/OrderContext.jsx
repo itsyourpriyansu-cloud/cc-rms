@@ -41,7 +41,10 @@ import {
   setStoredDishAvailability,
   getStoredCouponRequests,
   setStoredCouponRequests,
+  getStoredCustomerOrders,
+  setStoredCustomerOrders,
 } from '../utils/storage';
+import { useCustomerSession } from './CustomerSessionContext';
 import {
   INITIAL_KITCHEN_ORDERS,
   INITIAL_ASSISTANCE_REQUESTS,
@@ -86,7 +89,37 @@ const STAGE_MAP = {
 };
 
 export const OrderProvider = ({ children }) => {
+  const { auth } = useCustomerSession();
+  const customerPhone = auth?.phone || null;
   const [activeOrder, setActiveOrder] = useState(() => getStoredOrder());
+  const [customerOrders, setCustomerOrders] = useState(() =>
+    customerPhone ? getStoredCustomerOrders(customerPhone) : []
+  );
+
+  useEffect(() => {
+    if (!customerPhone) {
+      setCustomerOrders([]);
+      return;
+    }
+
+    const savedOrders = getStoredCustomerOrders(customerPhone);
+    if (activeOrder?.customer?.phone && activeOrder.customer.phone !== customerPhone) {
+      setActiveOrder(null);
+      clearStoredOrder();
+      setCustomerOrders(savedOrders);
+      return;
+    }
+
+    const belongsToCustomer =
+      activeOrder?.customer?.phone === customerPhone || !activeOrder?.customer?.phone;
+    const nextOrders =
+      activeOrder && belongsToCustomer
+        ? [activeOrder, ...savedOrders.filter((order) => order.orderId !== activeOrder.orderId)]
+        : savedOrders;
+
+    setCustomerOrders(nextOrders);
+    setStoredCustomerOrders(customerPhone, nextOrders);
+  }, [activeOrder, customerPhone]);
 
   const [kitchenOrders, setKitchenOrders] = useState(() => {
     const stored = getStoredKitchenOrders();
@@ -970,7 +1003,8 @@ export const OrderProvider = ({ children }) => {
       status: 'received',
       stageIndex: 0, // 0: Received, 1: Preparing, 2: Ready, 3: Served
       createdAt: new Date().toISOString(),
-      isPaid: false,
+      isPaid: Boolean(orderData.isPaid),
+      transaction: orderData.transaction || null,
       items: (orderData.items || []).map((it, idx) => ({
         ...it,
         id: it.id || `item-${Date.now()}-${idx}`,
@@ -1295,7 +1329,8 @@ export const OrderProvider = ({ children }) => {
     if (!activeOrder) return;
     const updated = {
       ...activeOrder,
-      isPaid: true,
+      isPaid: transactionData?.paymentStatus !== 'PAY_ON_DELIVERY',
+      paymentStatus: transactionData?.paymentStatus || 'PAID',
       transaction: transactionData,
     };
     setActiveOrder(updated);
@@ -1303,6 +1338,19 @@ export const OrderProvider = ({ children }) => {
   };
 
   const clearOrder = () => {
+    if (activeOrder && customerPhone) {
+      const completedOrder = {
+        ...activeOrder,
+        status: activeOrder.status === 'delivered' ? 'delivered' : 'completed',
+        completedAt: activeOrder.completedAt || new Date().toISOString(),
+      };
+      const nextOrders = [
+        completedOrder,
+        ...customerOrders.filter((order) => order.orderId !== activeOrder.orderId),
+      ];
+      setCustomerOrders(nextOrders);
+      setStoredCustomerOrders(customerPhone, nextOrders);
+    }
     setActiveOrder(null);
     clearStoredOrder();
   };
@@ -1722,6 +1770,7 @@ export const OrderProvider = ({ children }) => {
     <OrderContext.Provider
       value={{
         activeOrder,
+        customerOrders,
         placeOrder,
         updateOrderStatus,
         markAsPaid,

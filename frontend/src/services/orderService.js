@@ -13,6 +13,7 @@ export const orderService = {
         orderType: orderPayload.fulfillment?.type || 'DELIVERY',
         items: orderPayload.items,
         totals: orderPayload.totals,
+        appliedPromo: orderPayload.appliedPromo || null,
         specialNotes: orderPayload.specialNotes || '',
         status: 'received', // 'received' | 'preparing' | 'ready' | 'served'
         createdAt: new Date().toISOString(),

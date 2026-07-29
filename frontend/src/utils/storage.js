@@ -11,6 +11,8 @@ const ISSUE_REPORT_KEY = 'tbv_restaurant_issue_report';
 const CUSTOMER_AUTH_KEY = 'rms_customer_auth';
 const CUSTOMER_PROFILES_KEY = 'rms_customer_profiles';
 const CUSTOMER_FULFILLMENT_KEY = 'rms_customer_fulfillment';
+const CUSTOMER_FAVOURITES_KEY = 'rms_customer_favourites';
+const CUSTOMER_ORDERS_KEY = 'rms_customer_orders';
 
 const readJson = (key, fallback = null) => {
   try {
@@ -64,6 +66,32 @@ export const setStoredCustomerFulfillment = (phone, fulfillment) => {
   writeJson(CUSTOMER_FULFILLMENT_KEY, {
     ...records,
     [phone]: fulfillment,
+  });
+};
+
+export const getStoredCustomerFavourites = (phone) => {
+  const records = readJson(CUSTOMER_FAVOURITES_KEY, {});
+  return Array.isArray(records[phone]) ? records[phone] : [];
+};
+
+export const setStoredCustomerFavourites = (phone, dishIds) => {
+  const records = readJson(CUSTOMER_FAVOURITES_KEY, {});
+  writeJson(CUSTOMER_FAVOURITES_KEY, {
+    ...records,
+    [phone]: dishIds,
+  });
+};
+
+export const getStoredCustomerOrders = (phone) => {
+  const records = readJson(CUSTOMER_ORDERS_KEY, {});
+  return Array.isArray(records[phone]) ? records[phone] : [];
+};
+
+export const setStoredCustomerOrders = (phone, orders) => {
+  const records = readJson(CUSTOMER_ORDERS_KEY, {});
+  writeJson(CUSTOMER_ORDERS_KEY, {
+    ...records,
+    [phone]: orders,
   });
 };
 
@@ -514,7 +542,6 @@ export const setStoredCouponRequests = (requests) => {
     console.error("Error saving coupon requests", e);
   }
 };
-
 
 
 

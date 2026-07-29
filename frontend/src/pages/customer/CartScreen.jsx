@@ -14,6 +14,7 @@ import Icon from '../../components/common/Icon';
 import BillingSummary from '../../components/common/BillingSummary';
 import CustomizationModal from '../../components/menu/CustomizationModal';
 import HonestExpectationBanner from '../../components/order/HonestExpectationBanner';
+import OfferPickerModal from '../../components/customer/OfferPickerModal';
 import { AlertTriangle, Bike, ChevronRight, Edit3, MapPin, Trash2, Plus, Minus } from 'lucide-react';
 
 const CartScreen = () => {
@@ -24,7 +25,6 @@ const CartScreen = () => {
     updateQuantity,
     removeFromCart,
     updateCartItemCustomization,
-    clearCart,
     tipPercentage,
     setTipPercentage,
     customTipAmount,
@@ -37,27 +37,32 @@ const CartScreen = () => {
     setSpecialOrderNotes,
     totals,
   } = useCart();
-  const { placeOrder, kitchenLoad } = useOrder();
+  const { kitchenLoad, customerOrders } = useOrder();
   const { showToast } = useToast();
 
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [showMobileDetails, setShowMobileDetails] = useState(false);
+  const [isOfferPickerOpen, setIsOfferPickerOpen] = useState(false);
 
   const [editingItem, setEditingItem] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const handleApplyPromo = async (e) => {
-    e.preventDefault();
-    if (!promoCodeInput.trim()) return;
+  const applyPromoCode = async (code) => {
+    if (!code.trim()) return;
     setIsApplyingPromo(true);
     try {
-      const res = await cartService.applyPromoCode(promoCodeInput);
+      const res = await cartService.applyPromoCode(code, {
+        subtotal: totals.subtotal,
+        cartItems,
+        isFirstOrder: customerOrders.length === 0,
+      });
       if (res.data.success) {
         setAppliedPromo(res.data.promo);
         showToast(`Promo "${res.data.promo.code}" applied successfully!`, 'success');
         setPromoCodeInput('');
+        setIsOfferPickerOpen(false);
       } else {
         showToast(res.data.message || 'Invalid promo code', 'error');
       }
@@ -66,6 +71,11 @@ const CartScreen = () => {
     } finally {
       setIsApplyingPromo(false);
     }
+  };
+
+  const handleApplyPromo = (event) => {
+    event.preventDefault();
+    applyPromoCode(promoCodeInput);
   };
 
   const handlePlaceOrder = async () => {
@@ -85,13 +95,16 @@ const CartScreen = () => {
         fulfillment,
         items: cartItems,
         totals,
+        appliedPromo,
         specialNotes: specialOrderNotes,
       };
       const res = await orderService.createOrder(payload);
-      placeOrder(res.data);
-      clearCart();
-      showToast('Order placed successfully with the kitchen!', 'success');
-      navigate('/order-confirmation');
+      navigate('/payment', {
+        state: {
+          checkout: true,
+          orderDraft: res.data,
+        },
+      });
     } catch (err) {
       showToast('Failed to place order. Please try again.', 'error');
     } finally {
@@ -280,7 +293,14 @@ const CartScreen = () => {
                   <Icon name="sell" className="text-saffron-600" />
                   <span className="text-xs font-bold text-ink">Promo Code or Voucher</span>
                 </div>
-                <span className="text-[10px] text-muted font-medium">Try: MANGAMMA10</span>
+                <button
+                  type="button"
+                  onClick={() => setIsOfferPickerOpen(true)}
+                  className="text-[11px] text-maroon-800 font-black flex items-center gap-1"
+                >
+                  View all offers
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
               {appliedPromo ? (
                 <div className="flex items-center justify-between p-3 bg-success/10 border border-success/30 rounded-xl text-xs">
@@ -335,7 +355,7 @@ const CartScreen = () => {
                 disabled={isPlacingOrder}
                 className="flex-[2] h-14 bg-saffron-600 text-white rounded-xl font-bold hover:bg-saffron-500 transition-opacity active:scale-95 shadow-md disabled:opacity-60 text-sm"
               >
-                {isPlacingOrder ? 'Placing Order...' : `Place Order • ${formatInvoiceAmount(totals.totalPayable || totals.grandTotal)}`}
+                {isPlacingOrder ? 'Preparing checkout...' : `Continue to payment • ${formatInvoiceAmount(totals.totalPayable || totals.grandTotal)}`}
               </button>
             </div>
           </div>
@@ -412,12 +432,22 @@ const CartScreen = () => {
             disabled={isPlacingOrder}
             className="flex-[2] h-12 bg-saffron-600 text-white rounded-xl font-bold active:scale-95 shadow-md text-xs disabled:opacity-60"
           >
-            {isPlacingOrder ? 'Placing...' : 'Place Order'}
+            {isPlacingOrder ? 'Preparing...' : 'Continue to payment'}
           </button>
         </div>
       </div>
 
       <BottomNavBar />
+
+      <OfferPickerModal
+        isOpen={isOfferPickerOpen}
+        onClose={() => setIsOfferPickerOpen(false)}
+        onApply={applyPromoCode}
+        subtotal={totals.subtotal}
+        cartItems={cartItems}
+        appliedPromo={appliedPromo}
+        isFirstOrder={customerOrders.length === 0}
+      />
     </>
   );
 };

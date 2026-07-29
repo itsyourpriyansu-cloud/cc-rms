@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { TableProvider } from './context/TableContext';
 import { CartProvider } from './context/CartContext';
@@ -35,6 +35,7 @@ import PortalGatewayScreen from './pages/portal/PortalGatewayScreen';
 import CustomerLoginScreen from './pages/customer/CustomerLoginScreen';
 import FulfillmentSetupScreen from './pages/customer/FulfillmentSetupScreen';
 import CustomerAccountScreen from './pages/customer/CustomerAccountScreen';
+import CustomerOrdersScreen from './pages/customer/CustomerOrdersScreen';
 
 const CustomerRouteGate = ({ children }) => {
   const location = useLocation();
@@ -47,9 +48,20 @@ const CustomerRouteGate = ({ children }) => {
   return children;
 };
 
+const RouteScrollManager = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
+
 function App() {
   return (
     <Router>
+      <RouteScrollManager />
       <ToastProvider>
         <CustomerSessionProvider>
           <TableProvider>
@@ -92,6 +104,7 @@ function App() {
                           <Route path="/" element={<WelcomeScreen />} />
                           <Route path="/delivery-details" element={<FulfillmentSetupScreen />} />
                           <Route path="/account" element={<CustomerAccountScreen />} />
+                          <Route path="/orders" element={<CustomerOrdersScreen />} />
                           <Route path="/menu" element={<MenuScreen />} />
                           <Route path="/menu/:id" element={<FoodDetailsScreen />} />
                           <Route path="/cart" element={<CartScreen />} />

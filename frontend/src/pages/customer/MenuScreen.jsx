@@ -46,7 +46,7 @@ const MenuScreen = () => {
 
   const { addToCart, totals } = useCart();
   const { kitchenLoad, addAssistanceRequest } = useOrder();
-  const { profile, fulfillment } = useCustomerSession();
+  const { profile, fulfillment, favouriteDishIds } = useCustomerSession();
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -97,7 +97,11 @@ const MenuScreen = () => {
     activeFilters.every((fid) => QUICK_FILTERS.find((f) => f.id === fid)?.test(d))
   );
 
-  const favouriteDishes = FAVOURITE_DISH_IDS.map((id) => DISHES.find((d) => d.id === id)).filter(Boolean);
+  const personalizedDishIds =
+    favouriteDishIds.length > 0 ? favouriteDishIds : FAVOURITE_DISH_IDS;
+  const favouriteDishes = personalizedDishIds
+    .map((id) => DISHES.find((dish) => dish.id === id))
+    .filter(Boolean);
 
   const handleOpenCustomize = (dish) => {
     if (dish.availabilityStatus === 'SOLD_OUT') {

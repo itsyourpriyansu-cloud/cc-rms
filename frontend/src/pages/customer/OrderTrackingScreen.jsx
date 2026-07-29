@@ -234,10 +234,23 @@ const OrderTrackingScreen = () => {
 
         <button
           type="button"
-          onClick={() => navigate('/bill')}
-          className="w-full h-12 rounded-xl bg-[#E97818] text-white text-sm font-black flex items-center justify-center gap-2"
+          onClick={() =>
+            stageIndex === stages.length - 1
+              ? navigate(activeOrder.isPaid ? '/success' : '/payment')
+              : navigate('/bill')
+          }
+          className={`w-full h-12 rounded-xl text-white text-sm font-black flex items-center justify-center gap-2 ${
+            stageIndex === stages.length - 1 ? 'bg-[#A30F3B]' : 'bg-[#E97818]'
+          }`}
         >
-          View bill and payment <ChevronRight className="w-4 h-4" />
+          {stageIndex === stages.length - 1
+            ? activeOrder.isPaid
+              ? 'Finish order and unlock rewards'
+              : 'Pay and finish order'
+            : activeOrder.isPaid
+            ? 'View paid bill'
+            : 'View bill and payment'}
+          <ChevronRight className="w-4 h-4" />
         </button>
 
         <p className="text-center text-[10px] text-[#95847C]">

@@ -3,9 +3,11 @@ import { customerAuthService } from '../services/customerAuthService';
 import {
   clearStoredCustomerAuth,
   getStoredCustomerAuth,
+  getStoredCustomerFavourites,
   getStoredCustomerFulfillment,
   getStoredCustomerProfile,
   setStoredCustomerAuth,
+  setStoredCustomerFavourites,
   setStoredCustomerFulfillment,
   setStoredCustomerProfile,
 } from '../utils/storage';
@@ -66,6 +68,9 @@ export const CustomerSessionProvider = ({ children }) => {
   const [fulfillment, setFulfillment] = useState(() =>
     auth?.phone ? buildFulfillment(getStoredCustomerFulfillment(auth.phone) || {}) : buildFulfillment()
   );
+  const [favouriteDishIds, setFavouriteDishIds] = useState(() =>
+    auth?.phone ? getStoredCustomerFavourites(auth.phone) : []
+  );
 
   const requestOtp = (phone) => customerAuthService.requestOtp(phone);
 
@@ -89,6 +94,7 @@ export const CustomerSessionProvider = ({ children }) => {
     setAuth(nextAuth);
     setProfile(nextProfile);
     setFulfillment(savedFulfillment);
+    setFavouriteDishIds(getStoredCustomerFavourites(phone));
     return nextAuth;
   };
 
@@ -117,11 +123,26 @@ export const CustomerSessionProvider = ({ children }) => {
     return nextFulfillment;
   };
 
+  const toggleFavouriteDish = (dishId) => {
+    if (!auth?.phone) return false;
+    let isFavourite = false;
+    setFavouriteDishIds((currentIds) => {
+      isFavourite = !currentIds.includes(dishId);
+      const nextIds = isFavourite
+        ? [dishId, ...currentIds]
+        : currentIds.filter((id) => id !== dishId);
+      setStoredCustomerFavourites(auth.phone, nextIds);
+      return nextIds;
+    });
+    return isFavourite;
+  };
+
   const signOut = () => {
     clearStoredCustomerAuth();
     setAuth(null);
     setProfile(null);
     setFulfillment(buildFulfillment());
+    setFavouriteDishIds([]);
   };
 
   const hasFulfillmentDetails = useMemo(() => {
@@ -145,6 +166,7 @@ export const CustomerSessionProvider = ({ children }) => {
         auth,
         profile,
         fulfillment,
+        favouriteDishIds,
         isAuthenticated: Boolean(auth?.phone),
         hasFulfillmentDetails,
         fulfillmentSummary,
@@ -152,6 +174,7 @@ export const CustomerSessionProvider = ({ children }) => {
         verifyOtp,
         updateProfile,
         updateFulfillment,
+        toggleFavouriteDish,
         signOut,
       }}
     >

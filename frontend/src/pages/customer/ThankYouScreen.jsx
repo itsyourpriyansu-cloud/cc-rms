@@ -1,225 +1,169 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CheckCircle2, Download, ReceiptText, Star, UtensilsCrossed } from 'lucide-react';
 import { useOrder } from '../../context/OrderContext';
 import { useCustomerSession } from '../../context/CustomerSessionContext';
 import { useToast } from '../../context/ToastContext';
 import { paymentService } from '../../services/paymentService';
 import { formatInvoiceAmount, deriveInvoiceNumber } from '../../utils/formatters';
 import TopAppBar from '../../components/layout/TopAppBar';
-import CustomerPreferencesModal from '../../components/preferences/CustomerPreferencesModal';
-import DiagnosticFeedbackModal from '../../components/retention/DiagnosticFeedbackModal';
-import SignatureDishStoryModal from '../../components/retention/SignatureDishStoryModal';
-import ContentRemovalModal from '../../components/retention/ContentRemovalModal';
-import MilestoneCouponCard from '../../components/retention/MilestoneCouponCard';
-import { CheckCircle2, MessageSquare, Camera, ShieldCheck, Download, UtensilsCrossed } from 'lucide-react';
+import ReferralCard from '../../components/customer/ReferralCard';
 
 const ThankYouScreen = () => {
   const navigate = useNavigate();
-  const { activeOrder, clearOrder, customerMemory, saveCustomerMemory, forgetCustomerMemory } = useOrder();
-  const { fulfillment: savedFulfillment } = useCustomerSession();
-  const fulfillment = activeOrder?.fulfillment || savedFulfillment;
+  const { activeOrder, clearOrder } = useOrder();
+  const { fulfillment: savedFulfillment, profile, auth } = useCustomerSession();
   const { showToast } = useToast();
 
+  const fulfillment = activeOrder?.fulfillment || savedFulfillment;
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isPrefsOpen, setIsPrefsOpen] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [feedbackSent, setFeedbackSent] = useState(false);
 
-  const [isDiagnosticFeedbackOpen, setIsDiagnosticFeedbackOpen] = useState(false);
-  const [isSignatureDishOpen, setIsSignatureDishOpen] = useState(false);
-  const [isRemovalModalOpen, setIsRemovalModalOpen] = useState(false);
+  const totalPaid =
+    activeOrder?.totals?.totalPayable ||
+    activeOrder?.totals?.grandTotal ||
+    activeOrder?.grandTotal ||
+    0;
+  const invoiceNumber = deriveInvoiceNumber(activeOrder);
+  const paymentMethod =
+    activeOrder?.transaction?.paymentMethod === 'cash'
+      ? 'Cash on delivery'
+      : activeOrder?.transaction?.paymentProvider ||
+        activeOrder?.transaction?.paymentMethod?.toUpperCase() ||
+        'Online payment';
 
   const handleDownloadReceipt = async () => {
     setIsDownloading(true);
     try {
-      const res = await paymentService.downloadReceipt(activeOrder?.orderId || 'INV-5983', activeOrder?.transaction);
-      const blob = new Blob([res.data.receiptText], { type: 'text/plain;charset=utf-8' });
+      const response = await paymentService.downloadReceipt(
+        activeOrder?.orderId || invoiceNumber,
+        activeOrder?.transaction
+      );
+      const blob = new Blob([response.data.receiptText], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', res.data.filename);
+      link.setAttribute('download', response.data.filename);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showToast('Receipt downloaded to your device!', 'success');
-    } catch (err) {
-      showToast('Could not download receipt', 'error');
+      URL.revokeObjectURL(url);
+      showToast('Receipt downloaded', 'success');
+    } catch {
+      showToast('Could not download the receipt', 'error');
     } finally {
       setIsDownloading(false);
     }
   };
 
-  const handleVisitAgain = () => {
-    clearOrder();
-    navigate('/');
+  const handleRating = (value) => {
+    setRating(value);
+    setFeedbackSent(true);
+    showToast('Thanks—your rating helps us improve', 'success');
   };
 
-  const totalPaid = activeOrder?.totals?.totalPayable || activeOrder?.totals?.grandTotal || activeOrder?.grandTotal || 262.5;
-  const invoiceNumber = deriveInvoiceNumber(activeOrder);
+  const handleOrderAgain = () => {
+    clearOrder();
+    navigate('/orders');
+  };
+
+  if (!activeOrder) {
+    return (
+      <div className="min-h-screen bg-[#FFFDF9]">
+        <TopAppBar variant="brand" />
+        <main className="max-w-md mx-auto px-4 pt-28 text-center">
+          <h1 className="text-2xl font-black">This order is already complete</h1>
+          <button
+            onClick={() => navigate('/orders')}
+            className="mt-5 h-12 px-5 rounded-xl bg-[#A30F3B] text-white font-black"
+          >
+            View your orders
+          </button>
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full min-h-screen bg-[#FFFDF9] text-[#211917] flex flex-col antialiased">
-      {/* 1. Compact Customer Header */}
+    <div className="min-h-screen bg-[#FFFDF9] text-[#211917]">
       <TopAppBar variant="brand" />
-
-      <main
-        className="w-full max-w-[640px] mx-auto flex-1 flex flex-col px-4 pt-18 pb-6 space-y-4"
-        style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}
-      >
-        {/* 2. Compact Payment-Success Confirmation Card */}
-        <section
-          aria-label="Payment Confirmation"
-          className="w-full p-4 bg-white rounded-2xl border border-[#EADFD6] shadow-sm flex items-center gap-3.5 text-left"
-        >
-          <div className="w-11 h-11 rounded-full bg-[#E8F8F1] flex items-center justify-center text-[#138A5B] shrink-0">
-            <CheckCircle2 className="w-6 h-6" />
+      <main className="max-w-[560px] mx-auto px-4 pt-20 pb-10 space-y-4">
+        <section className="rounded-[28px] bg-gradient-to-br from-emerald-600 to-emerald-800 text-white p-6 text-center shadow-lg">
+          <div className="w-16 h-16 rounded-full bg-white/15 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-9 h-9" />
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-[15px] font-semibold text-[#211917] leading-tight">Payment Successful</h1>
-            <p className="text-[23px] font-bold text-[#A30F3B] leading-tight mt-0.5">
-              {formatInvoiceAmount(totalPaid)} paid
-            </p>
-            <p className="text-[12px] text-[#6E5F58] mt-0.5">
-              {fulfillment.type === 'DELIVERY' ? 'Delivery' : 'Pickup'} order · Invoice {invoiceNumber}
-            </p>
+          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/70 mt-4">
+            Order delivered
+          </p>
+          <h1 className="text-2xl font-black mt-1">Enjoy your meal, {profile?.firstName}!</h1>
+          <p className="text-sm text-white/75 mt-2">
+            {fulfillment.type === 'DELIVERY'
+              ? `Delivered to ${fulfillment.label || 'your address'}`
+              : 'Your pickup is complete'}
+          </p>
+        </section>
+
+        <section className="rounded-[22px] bg-white border border-[#EADFD6] p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-[#FBECEF] text-[#A30F3B] flex items-center justify-center">
+              <ReceiptText className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-[#75665F]">Invoice {invoiceNumber}</p>
+              <p className="font-black text-lg">{formatInvoiceAmount(totalPaid)}</p>
+              <p className="text-[11px] text-emerald-700 font-bold">{paymentMethod} • Payment confirmed</p>
+            </div>
+            <button
+              onClick={handleDownloadReceipt}
+              disabled={isDownloading}
+              aria-label="Download receipt"
+              className="w-11 h-11 rounded-xl border border-[#EADFD6] text-[#A30F3B] flex items-center justify-center disabled:opacity-50"
+            >
+              <Download className="w-5 h-5" />
+            </button>
           </div>
         </section>
 
-        {/* 3–5. Coupon Request Progress Card */}
-        <MilestoneCouponCard
-          activeOrder={activeOrder}
-          onOpenPrivacyControls={() => setIsRemovalModalOpen(true)}
+        <section className="rounded-[22px] bg-white border border-[#EADFD6] p-5 text-center shadow-sm">
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#F47712]">Quick feedback</p>
+          <h2 className="text-lg font-black mt-1">
+            {feedbackSent ? 'Thank you for rating us' : 'How was your order?'}
+          </h2>
+          <p className="text-xs text-[#6E5F58] mt-1">One tap is enough. You can report a specific issue from Orders.</p>
+          <div className="flex items-center justify-center gap-2 mt-4" role="group" aria-label="Rate this order">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <button
+                key={value}
+                onClick={() => handleRating(value)}
+                aria-label={`Rate ${value} star${value === 1 ? '' : 's'}`}
+                aria-pressed={rating === value}
+                className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
+                  value <= rating
+                    ? 'bg-amber-100 text-amber-600'
+                    : 'bg-[#F7F3F0] text-stone-400'
+                }`}
+              >
+                <Star className={`w-5 h-5 ${value <= rating ? 'fill-current' : ''}`} />
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <ReferralCard
+          firstName={profile?.firstName}
+          phone={auth?.phone}
+          onNotify={showToast}
         />
 
-        {/* 6. Connected Guest Experience Section */}
-        <section aria-label="Connected Guest Experience" className="w-full space-y-3 pt-2 text-left">
-          <div className="flex items-center justify-between px-0.5">
-            <h2 className="font-bold text-xs text-[#A30F3B] uppercase tracking-wider">
-              Connected Guest Experience
-            </h2>
-            <span className="text-[11px] font-semibold text-[#6E5F58] bg-[#F0E7E0] px-2 py-0.5 rounded-md">
-              Optional
-            </span>
-          </div>
-
-          <div className="space-y-2.5">
-            {/* Feedback Card */}
-            <div className="p-3.5 bg-white rounded-2xl border border-[#EADFD6] shadow-sm flex items-center justify-between gap-3 min-h-[78px]">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-[#FBECEF] text-[#A30F3B] flex items-center justify-center shrink-0">
-                  <MessageSquare className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-bold text-xs text-[#211917] truncate">Share Useful Feedback</h3>
-                  <p className="text-[12px] text-[#6E5F58] leading-tight mt-0.5">
-                    Help us improve food, service, speed, cleanliness & value.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsDiagnosticFeedbackOpen(true)}
-                className="px-3.5 py-1.5 bg-white border border-[#A30F3B] text-[#A30F3B] hover:bg-[#FBECEF] font-bold text-xs rounded-xl shadow-2xs transition-colors shrink-0 cursor-pointer"
-              >
-                Feedback
-              </button>
-            </div>
-
-            {/* Dish Story Card */}
-            <div className="p-3.5 bg-white rounded-2xl border border-[#EADFD6] shadow-sm flex items-center justify-between gap-3 min-h-[78px]">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-[#FFF0E3] text-[#F47712] flex items-center justify-center shrink-0">
-                  <Camera className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-bold text-xs text-[#211917] truncate">Share a Dish Moment</h3>
-                  <p className="text-[12px] text-[#6E5F58] leading-tight mt-0.5">
-                    Watch a dish story or share authentic content.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsSignatureDishOpen(true)}
-                className="px-3.5 py-1.5 bg-white border border-[#F47712] text-[#F47712] hover:bg-[#FFF0E3] font-bold text-xs rounded-xl shadow-2xs transition-colors shrink-0 cursor-pointer"
-              >
-                Dish Story
-              </button>
-            </div>
-
-            {/* 7. Privacy & Communication Controls */}
-            <div
-              onClick={() => setIsRemovalModalOpen(true)}
-              className="p-3.5 bg-[#FFF8F1] rounded-xl border border-[#EADFD6] flex items-center justify-between gap-2.5 text-xs min-h-[48px] cursor-pointer hover:bg-[#FFF0E3]/50 transition-colors"
-            >
-              <div className="flex items-start gap-2 min-w-0">
-                <ShieldCheck className="w-4 h-4 text-[#A30F3B] shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <span className="font-bold text-[#211917] text-xs block">Privacy & Communication</span>
-                  <span className="text-[#6E5F58] text-[11px] leading-tight block">
-                    Review coupon consent, WhatsApp preferences and content permissions.
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsRemovalModalOpen(true);
-                }}
-                className="text-[#A30F3B] font-bold text-xs hover:underline shrink-0 px-2 py-1"
-              >
-                Manage
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* 8. Receipt Actions */}
-        <div className="w-full pt-2">
-          <button
-            onClick={handleDownloadReceipt}
-            disabled={isDownloading}
-            className="w-full h-12 bg-white border border-[#EADFD6] text-[#211917] rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#FFF8F1] text-xs disabled:opacity-60 transition-colors cursor-pointer shadow-2xs"
-          >
-            <Download className="w-4 h-4 text-[#A30F3B]" />
-            {isDownloading ? 'Downloading...' : 'Download Receipt'}
-          </button>
-        </div>
-
-        {/* 9. Visit Again */}
-        <div className="w-full flex justify-center pb-2">
-          <button
-            onClick={handleVisitAgain}
-            className="h-11 px-6 text-[#A30F3B] font-bold flex items-center justify-center gap-2 hover:underline text-xs min-h-[44px] cursor-pointer"
-          >
-            <UtensilsCrossed className="w-4 h-4" />
-            Order Again
-          </button>
-        </div>
+        <button
+          onClick={handleOrderAgain}
+          className="w-full h-14 rounded-2xl border-2 border-[#A30F3B] text-[#A30F3B] font-black flex items-center justify-center gap-2 active:scale-[0.98]"
+        >
+          <UtensilsCrossed className="w-4 h-4" />
+          Finish and view order history
+        </button>
       </main>
-
-      {/* Connected Systems Retention Modals */}
-      <DiagnosticFeedbackModal
-        isOpen={isDiagnosticFeedbackOpen}
-        onClose={() => setIsDiagnosticFeedbackOpen(false)}
-        order={activeOrder}
-      />
-
-      <SignatureDishStoryModal
-        isOpen={isSignatureDishOpen}
-        onClose={() => setIsSignatureDishOpen(false)}
-        dish={{ id: 'biryani-chicken-dum', name: 'Chicken Dum Biryani' }}
-      />
-
-      <ContentRemovalModal
-        isOpen={isRemovalModalOpen}
-        onClose={() => setIsRemovalModalOpen(false)}
-      />
-
-      <CustomerPreferencesModal
-        isOpen={isPrefsOpen}
-        onClose={() => setIsPrefsOpen(false)}
-        customerMemory={customerMemory}
-        onSaveMemory={saveCustomerMemory}
-        onForgetMemory={forgetCustomerMemory}
-      />
     </div>
   );
 };

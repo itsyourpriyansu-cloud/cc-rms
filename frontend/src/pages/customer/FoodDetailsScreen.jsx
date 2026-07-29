@@ -141,7 +141,7 @@ const FoodDetailsScreen = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { fulfillment } = useCustomerSession();
+  const { fulfillment, favouriteDishIds, toggleFavouriteDish } = useCustomerSession();
   const { kitchenLoad, addAssistanceRequest } = useOrder();
   const { showToast } = useToast();
 
@@ -151,8 +151,8 @@ const FoodDetailsScreen = () => {
   const [showStoryModal, setShowStoryModal] = useState(false);
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
   const [isTrustOpen, setIsTrustOpen] = useState(false);
-  const [isFavourite, setIsFavourite] = useState(false);
   const [isAllergyExpanded, setIsAllergyExpanded] = useState(false);
+  const isFavourite = favouriteDishIds.includes(id);
 
   useEffect(() => {
     const loadDish = async () => {
@@ -203,6 +203,14 @@ const FoodDetailsScreen = () => {
     showToast(`Added pairing "${pairing.name}" to cart`, 'success');
   };
 
+  const handleToggleFavourite = () => {
+    const nextIsFavourite = toggleFavouriteDish(dish.id);
+    showToast(
+      nextIsFavourite ? `${dish.name} saved to favourites` : `${dish.name} removed from favourites`,
+      nextIsFavourite ? 'success' : 'info'
+    );
+  };
+
   const isChickenDumBiryani = dish && (
     dish.id === 'biryani-chicken-dum' ||
     (dish.name && dish.name.toLowerCase().includes('chicken dum biryani'))
@@ -249,7 +257,7 @@ const FoodDetailsScreen = () => {
               <ArrowLeft className="w-5 h-5 text-[#211917]" />
             </button>
             <button
-              onClick={() => setIsFavourite((v) => !v)}
+              onClick={handleToggleFavourite}
               aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
               aria-pressed={isFavourite}
               className="w-10 h-10 flex items-center justify-center rounded-full bg-white/85 backdrop-blur-md hover:bg-white active:scale-95 transition-all shadow-md border border-white/40 text-[#211917]"
