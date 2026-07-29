@@ -5,7 +5,7 @@ import { ArrowRight, Sparkles } from 'lucide-react';
 /**
  * Compact customer food-discovery hero with refined typography & breathing room.
  */
-const MenuDiscoveryHero = ({ tableNumber = '05', onSeeFavourites }) => {
+const MenuDiscoveryHero = ({ firstName = 'there', fulfillmentLabel = 'Delivery', onSeeFavourites }) => {
   const heroDishes = [
     { url: stockImages.traditionalBananaLeafMeal.url, alt: 'Banana leaf meal' },
     { url: stockImages.biryani.url, alt: 'Chicken biryani' },
@@ -15,20 +15,20 @@ const MenuDiscoveryHero = ({ tableNumber = '05', onSeeFavourites }) => {
   return (
     <section className="px-4 mt-3 mb-7">
       <div className="relative overflow-hidden rounded-[22px] bg-[#FFF7EE] border border-[#EADFD6] p-5 sm:p-6 shadow-xs flex items-center justify-between gap-4 min-h-[165px] sm:min-h-[180px]">
-        {/* Left: Text & table identity */}
+        {/* Left: Text and fulfillment identity */}
         <div className="flex-1 min-w-0 z-10 flex flex-col justify-between py-1">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FBECEF] text-[#A30F3B] text-[11.5px] font-bold tracking-wide border border-[#A30F3B]/15 mb-3">
               <span className="w-1.5 h-1.5 rounded-full bg-[#A30F3B]" />
-              Table {tableNumber}
+              {fulfillmentLabel}
             </div>
 
             <h1 className="text-[21px] sm:text-[23px] font-bold text-[#211917] leading-tight tracking-tight">
-              What would you like today?
+              What would you like, {firstName}?
             </h1>
 
             <p className="text-[13px] text-[#6F5F58] leading-relaxed mt-2 mb-1 max-w-[250px] sm:max-w-[290px]">
-              Traditional favourites, biryanis and curries prepared fresh for your table.
+              Traditional favourites, biryanis and curries prepared fresh for your order.
             </p>
           </div>
 

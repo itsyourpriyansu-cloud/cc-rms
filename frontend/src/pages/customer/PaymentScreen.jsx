@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrder } from '../../context/OrderContext';
-import { useTable } from '../../context/TableContext';
+import { useCustomerSession } from '../../context/CustomerSessionContext';
 import { useToast } from '../../context/ToastContext';
 import { paymentService } from '../../services/paymentService';
 import { formatInvoiceAmount } from '../../utils/formatters';
@@ -13,13 +13,14 @@ const PAYMENT_METHODS = [
   { id: 'upi', name: 'UPI / QR Code', subtitle: 'GPay, PhonePe, Paytm', icon: 'account_balance_wallet' },
   { id: 'credit', name: 'Credit Card', subtitle: 'Visa, Mastercard, Amex', icon: 'credit_card' },
   { id: 'debit', name: 'Debit Card', subtitle: 'Instant Bank Settlement', icon: 'payments' },
-  { id: 'cash', name: 'Cash at Counter', subtitle: 'Pay directly to our staff', icon: 'storefront' },
+  { id: 'cash', name: 'Cash', subtitle: 'Pay on delivery or at pickup', icon: 'storefront' },
 ];
 
 const PaymentScreen = () => {
   const navigate = useNavigate();
   const { activeOrder, markAsPaid } = useOrder();
-  const { tableNumber } = useTable();
+  const { fulfillment: savedFulfillment } = useCustomerSession();
+  const fulfillment = activeOrder?.fulfillment || savedFulfillment;
   const { showToast } = useToast();
 
   const [selectedMethod, setSelectedMethod] = useState('upi');
@@ -30,7 +31,12 @@ const PaymentScreen = () => {
   const handleProcessPayment = async () => {
     setIsProcessing(true);
     try {
-      const paymentPayload = { orderId: activeOrder?.orderId, amount: grandTotal, method: selectedMethod, tableNumber };
+      const paymentPayload = {
+        orderId: activeOrder?.orderId,
+        amount: grandTotal,
+        method: selectedMethod,
+        fulfillmentType: fulfillment.type,
+      };
       const res = await paymentService.processPayment(paymentPayload);
       if (res.data.success) {
         markAsPaid(res.data);
@@ -68,7 +74,7 @@ const PaymentScreen = () => {
       <main className="flex-1 pt-20 pb-32 max-w-md mx-auto w-full px-4">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-on-surface mb-1">Select Payment Method</h2>
-          <p className="text-sm text-on-surface-variant">Choose your preferred way to settle the check.</p>
+          <p className="text-sm text-on-surface-variant">Choose how you would like to pay for this {fulfillment.type === 'DELIVERY' ? 'delivery' : 'pickup'} order.</p>
         </div>
 
         {/* Order Total Card */}

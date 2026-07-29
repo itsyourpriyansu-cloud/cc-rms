@@ -8,6 +8,64 @@ const WAITER_TABLES_KEY = 'tbv_restaurant_waiter_tables';
 const BILL_REQUESTS_KEY = 'tbv_restaurant_bill_requests';
 const KITCHEN_PREFS_KEY = 'tbv_restaurant_kitchen_prefs';
 const ISSUE_REPORT_KEY = 'tbv_restaurant_issue_report';
+const CUSTOMER_AUTH_KEY = 'rms_customer_auth';
+const CUSTOMER_PROFILES_KEY = 'rms_customer_profiles';
+const CUSTOMER_FULFILLMENT_KEY = 'rms_customer_fulfillment';
+
+const readJson = (key, fallback = null) => {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const writeJson = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Error writing ${key} to localStorage`, error);
+  }
+};
+
+export const getStoredCustomerAuth = () => readJson(CUSTOMER_AUTH_KEY);
+
+export const setStoredCustomerAuth = (auth) => writeJson(CUSTOMER_AUTH_KEY, auth);
+
+export const clearStoredCustomerAuth = () => {
+  try {
+    localStorage.removeItem(CUSTOMER_AUTH_KEY);
+  } catch (error) {
+    console.error('Error clearing customer authentication', error);
+  }
+};
+
+export const getStoredCustomerProfile = (phone) => {
+  const profiles = readJson(CUSTOMER_PROFILES_KEY, {});
+  return profiles[phone] || null;
+};
+
+export const setStoredCustomerProfile = (phone, profile) => {
+  const profiles = readJson(CUSTOMER_PROFILES_KEY, {});
+  writeJson(CUSTOMER_PROFILES_KEY, {
+    ...profiles,
+    [phone]: profile,
+  });
+};
+
+export const getStoredCustomerFulfillment = (phone) => {
+  const records = readJson(CUSTOMER_FULFILLMENT_KEY, {});
+  return records[phone] || null;
+};
+
+export const setStoredCustomerFulfillment = (phone, fulfillment) => {
+  const records = readJson(CUSTOMER_FULFILLMENT_KEY, {});
+  writeJson(CUSTOMER_FULFILLMENT_KEY, {
+    ...records,
+    [phone]: fulfillment,
+  });
+};
 
 export const getStoredCart = () => {
   try {
@@ -456,7 +514,6 @@ export const setStoredCouponRequests = (requests) => {
     console.error("Error saving coupon requests", e);
   }
 };
-
 
 
 

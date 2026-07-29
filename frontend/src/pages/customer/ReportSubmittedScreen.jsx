@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTable } from '../../context/TableContext';
+import { useOrder } from '../../context/OrderContext';
 import { RESTAURANT_INFO } from '../../utils/mockData';
 import Icon from '../../components/common/Icon';
 
 const ReportSubmittedScreen = () => {
   const navigate = useNavigate();
-  const { tableNumber } = useTable();
+  const { activeOrder } = useOrder();
 
   return (
     <>
@@ -15,7 +15,7 @@ const ReportSubmittedScreen = () => {
           <Icon name="arrow_back" />
         </button>
         <h1 className="text-xl font-bold text-primary">Mangamma Ruchulu</h1>
-        <span className="text-sm font-semibold text-primary">Table {tableNumber}</span>
+        <span className="text-sm font-semibold text-primary">Order #{activeOrder?.orderId || 'Active'}</span>
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 w-full max-w-md mx-auto text-center py-16 mt-14">
@@ -36,7 +36,7 @@ const ReportSubmittedScreen = () => {
         {/* Success Copy */}
         <h2 className="text-2xl font-bold text-on-surface mb-3">Report Submitted</h2>
         <p className="text-base text-on-surface-variant max-w-[280px] mb-12">
-          Our staff has been notified and will assist you shortly.
+          Our support team has been notified and will update this order shortly.
         </p>
 
         {/* Atmosphere Image */}

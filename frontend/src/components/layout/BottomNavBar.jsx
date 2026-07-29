@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, ShoppingBag, ReceiptText, WalletCards } from 'lucide-react';
+import { BookOpen, ShoppingBag, ReceiptText, UserRound } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useOrder } from '../../context/OrderContext';
 
@@ -24,7 +24,7 @@ const NAV_ITEMS = [
   { label: 'Menu', path: '/menu', icon: BookOpen },
   { label: 'Cart', path: '/cart', icon: ShoppingBag },
   { label: 'Orders', path: '/order-tracking', icon: ReceiptText },
-  { label: 'Bill', path: '/bill', icon: WalletCards },
+  { label: 'Account', path: '/account', icon: UserRound },
 ];
 
 const BottomNavBar = () => {
@@ -53,8 +53,7 @@ const BottomNavBar = () => {
           const isActive =
             location.pathname === item.path ||
             (item.path === '/menu' && location.pathname.startsWith('/menu/')) ||
-            (item.path === '/order-tracking' && location.pathname === '/order-confirmation') ||
-            (item.path === '/bill' && location.pathname === '/payment');
+            (item.path === '/order-tracking' && location.pathname === '/order-confirmation');
 
           const cartBadge = item.path === '/cart' ? (totals?.itemCount || 0) : 0;
           const hasActiveOrder = item.path === '/order-tracking' && !!activeOrder;
@@ -116,4 +115,3 @@ const BottomNavBar = () => {
 };
 
 export default BottomNavBar;
-

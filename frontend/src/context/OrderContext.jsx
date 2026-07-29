@@ -1003,9 +1003,11 @@ export const OrderProvider = ({ children }) => {
 
     const newKitchenOrder = {
       orderId: orderData.orderId || `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-      tableNumber: orderData.tableNumber || '05',
-      serverName: 'Table QR',
-      guestCount: orderData.guestCount || 2,
+      tableNumber: orderData.tableNumber || orderData.fulfillment?.type || 'DELIVERY',
+      serverName: orderData.fulfillment?.type === 'PICKUP' ? 'Customer Pickup' : 'Direct Delivery',
+      guestCount: orderData.guestCount || 1,
+      customer: orderData.customer,
+      fulfillment: orderData.fulfillment,
       status: 'received',
       isRush: false,
       createdAt: new Date().toISOString(),
@@ -1017,10 +1019,12 @@ export const OrderProvider = ({ children }) => {
     setKitchenOrders((prev) => [newKitchenOrder, ...prev]);
 
     // Update waiter floor plan table status to 'cooking'
-    updateWaiterTableStatus(orderData.tableNumber || '05', 'cooking', {
-      activeOrderId: newKitchenOrder.orderId,
-      totalBill: orderData.totals?.grandTotal || 0,
-    });
+    if (orderData.tableNumber) {
+      updateWaiterTableStatus(orderData.tableNumber, 'cooking', {
+        activeOrderId: newKitchenOrder.orderId,
+        totalBill: orderData.totals?.grandTotal || 0,
+      });
+    }
 
     playKitchenChime();
   };

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrder } from '../../context/OrderContext';
-import { useTable } from '../../context/TableContext';
+import { useCustomerSession } from '../../context/CustomerSessionContext';
 import { formatInvoiceAmount, formatMenuPrice, formatTime } from '../../utils/formatters';
 import Icon from '../../components/common/Icon';
-import CustomerPreferencesModal from '../../components/preferences/CustomerPreferencesModal';
-import { AlertTriangle, CheckCircle, Clock, Heart } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
 const CONFETTI_DOTS = [
   { className: 'bg-red-400 top-4 left-1/4' },
@@ -17,9 +16,9 @@ const CONFETTI_DOTS = [
 
 const OrderConfirmationScreen = () => {
   const navigate = useNavigate();
-  const { activeOrder, kitchenLoad, customerMemory, saveCustomerMemory, forgetCustomerMemory } = useOrder();
-  const { tableNumber } = useTable();
-  const [isPrefsOpen, setIsPrefsOpen] = useState(false);
+  const { activeOrder, kitchenLoad } = useOrder();
+  const { fulfillment: savedFulfillment } = useCustomerSession();
+  const fulfillment = activeOrder?.fulfillment || savedFulfillment;
 
   const orderTime = formatTime(activeOrder?.createdAt || new Date());
   const totals = activeOrder?.totals || { subtotal: 0, gst: 0, totalPayable: 0 };
@@ -34,7 +33,7 @@ const OrderConfirmationScreen = () => {
             <Icon name="arrow_back" />
           </button>
           <span className="text-xs font-bold text-maroon-800 bg-saffron-100 px-3 py-1 rounded-full">
-            Table #{tableNumber}
+            {fulfillment.type === 'DELIVERY' ? 'Delivery order' : 'Self pickup'}
           </span>
         </header>
 
@@ -48,9 +47,9 @@ const OrderConfirmationScreen = () => {
               <div key={idx} className={`absolute w-1.5 h-1.5 rounded-full ${dot.className}`} />
             ))}
           </div>
-          <h1 className="text-2xl font-bold mt-2 text-ink">Order sent to kitchen!</h1>
+          <h1 className="text-2xl font-bold mt-2 text-ink">Order confirmed!</h1>
           <p className="text-text mt-1 text-xs">
-            Thanks! Your customized order is being prepared with care ❤️
+            Thanks, {activeOrder?.customer?.firstName || 'your order'} is now in the kitchen queue.
           </p>
         </section>
 
@@ -58,7 +57,7 @@ const OrderConfirmationScreen = () => {
         <div className="bg-saffron-100/80 border border-saffron-600/30 rounded-xl p-3.5 mb-4 text-maroon-800 text-xs flex items-center gap-2.5">
           <AlertTriangle className="w-5 h-5 text-maroon-800 flex-shrink-0" />
           <span>
-            <strong>Review customizations before confirming your order.</strong> All selected modifiers have been dispatched to kitchen displays.
+            <strong>Your customizations are locked in.</strong> Allergies, modifiers and delivery instructions were sent with the order.
           </span>
         </div>
 
@@ -70,8 +69,8 @@ const OrderConfirmationScreen = () => {
           </div>
           <div className="w-px h-8 bg-border" />
           <div className="text-center flex-1">
-            <p className="text-[10px] uppercase tracking-wider text-muted font-bold">Table</p>
-            <p className="font-bold text-base text-ink">{tableNumber}</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted font-bold">Order Type</p>
+            <p className="font-bold text-base text-ink">{fulfillment.type === 'DELIVERY' ? 'Delivery' : 'Pickup'}</p>
           </div>
           <div className="w-px h-8 bg-border" />
           <div className="text-center flex-1">
@@ -212,13 +211,6 @@ const OrderConfirmationScreen = () => {
         </footer>
       </div>
 
-      <CustomerPreferencesModal
-        isOpen={false}
-        onClose={() => setIsPrefsOpen(false)}
-        customerMemory={customerMemory}
-        onSaveMemory={saveCustomerMemory}
-        onForgetMemory={forgetCustomerMemory}
-      />
     </main>
   );
 };

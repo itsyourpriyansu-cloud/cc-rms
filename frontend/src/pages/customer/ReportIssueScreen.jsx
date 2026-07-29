@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrder } from '../../context/OrderContext';
-import { useTable } from '../../context/TableContext';
+import { useCustomerSession } from '../../context/CustomerSessionContext';
 import { useToast } from '../../context/ToastContext';
 import { ISSUE_CATEGORIES } from '../../utils/issueCategories';
 import Icon from '../../components/common/Icon';
@@ -9,7 +9,8 @@ import Icon from '../../components/common/Icon';
 const ReportIssueScreen = () => {
   const navigate = useNavigate();
   const { activeOrder, submitIssue } = useOrder();
-  const { tableNumber } = useTable();
+  const { fulfillment: savedFulfillment } = useCustomerSession();
+  const fulfillment = activeOrder?.fulfillment || savedFulfillment;
   const { showToast } = useToast();
 
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -34,7 +35,7 @@ const ReportIssueScreen = () => {
 
     const createdIssue = submitIssue({
       orderId: activeOrder?.orderId || 'ORD-1048',
-      tableNumber,
+      tableNumber: fulfillment.type,
       category: selectedCategory.id,
       categoryLabel: selectedCategory.label,
       affectedItemId: affectedItemId || null,
@@ -54,7 +55,7 @@ const ReportIssueScreen = () => {
         </button>
         <h1 className="text-lg font-bold text-primary italic">Service Recovery</h1>
         <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold border border-primary/20">
-          Table {tableNumber}
+          Order #{activeOrder?.orderId || 'ORD-1048'}
         </div>
       </header>
 
@@ -74,8 +75,8 @@ const ReportIssueScreen = () => {
               <p className="text-xl font-black text-primary">#{activeOrder?.orderId || 'ORD-1048'}</p>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider">Table</span>
-              <p className="text-xl font-bold text-on-surface">{tableNumber}</p>
+              <span className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider">Order Type</span>
+              <p className="text-xl font-bold text-on-surface">{fulfillment.type === 'DELIVERY' ? 'Delivery' : 'Pickup'}</p>
             </div>
           </div>
 

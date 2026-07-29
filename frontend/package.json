@@ -19,11 +19,13 @@
     "autoprefixer": "^10.5.4",
     "axios": "^1.18.1",
     "framer-motion": "^12.42.2",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.25.0",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.22",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.18.1",
     "tailwindcss": "^4.3.3",
     "vite": "^8.1.1"

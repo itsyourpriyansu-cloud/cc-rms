@@ -23,7 +23,7 @@ import Icon from '../../components/common/Icon';
 import { DISHES, FAVOURITE_DISH_IDS } from '../../utils/mockData';
 import { useCart } from '../../context/CartContext';
 import { useOrder } from '../../context/OrderContext';
-import { useTable } from '../../context/TableContext';
+import { useCustomerSession } from '../../context/CustomerSessionContext';
 import { useToast } from '../../context/ToastContext';
 
 const MenuScreen = () => {
@@ -45,8 +45,8 @@ const MenuScreen = () => {
   const favouritesRef = useRef(null);
 
   const { addToCart, totals } = useCart();
-  const { tableNumber } = useTable();
   const { kitchenLoad, addAssistanceRequest } = useOrder();
+  const { profile, fulfillment } = useCustomerSession();
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -105,7 +105,7 @@ const MenuScreen = () => {
       return;
     }
     if (dish.orderableInApp === false) {
-      showToast(`${dish.name} is priced at MRP — please ask your server`, 'info');
+      showToast(`${dish.name} is priced at MRP — please contact support`, 'info');
       return;
     }
     setCustomizingDish(dish);
@@ -149,7 +149,11 @@ const MenuScreen = () => {
         }}
       >
         {/* 1. Welcome / Discovery Hero */}
-        <MenuDiscoveryHero tableNumber={tableNumber} onSeeFavourites={scrollToFavourites} />
+        <MenuDiscoveryHero
+          firstName={profile?.firstName}
+          fulfillmentLabel={fulfillment.type === 'DELIVERY' ? `Delivery to ${fulfillment.label}` : 'Self pickup'}
+          onSeeFavourites={scrollToFavourites}
+        />
 
         {/* 2. Compact Kitchen Status */}
         <CompactKitchenStatus kitchenLoad={kitchenLoad} />
@@ -177,7 +181,7 @@ const MenuScreen = () => {
           onResetFilters={resetFilters}
         />
 
-        {/* 6. Recommended for your table */}
+        {/* 6. Personalized recommendations */}
         {showCuratedRecommendations && favouriteDishes.length > 0 && (
           <RecommendedDishRail
             recommendedDishes={favouriteDishes}
@@ -253,7 +257,7 @@ const MenuScreen = () => {
       <RestaurantTrustProfileModal
         isOpen={isTrustOpen}
         onClose={() => setIsTrustOpen(false)}
-        onRequestAssistance={(type) => addAssistanceRequest(tableNumber, type)}
+        onRequestAssistance={(type) => addAssistanceRequest(fulfillment.type, type)}
       />
       <CustomerPreferencesModal isOpen={isPrefsOpen} onClose={() => setIsPrefsOpen(false)} />
 

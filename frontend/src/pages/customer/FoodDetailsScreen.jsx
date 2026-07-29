@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { menuService } from '../../services/menuService';
 import { useCart } from '../../context/CartContext';
 import { useOrder } from '../../context/OrderContext';
-import { useTable } from '../../context/TableContext';
+import { useCustomerSession } from '../../context/CustomerSessionContext';
 import { useToast } from '../../context/ToastContext';
 import { formatMenuPrice } from '../../utils/formatters';
 import ResponsiveImage from '../../components/common/ResponsiveImage';
@@ -141,7 +141,7 @@ const FoodDetailsScreen = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { tableNumber } = useTable();
+  const { fulfillment } = useCustomerSession();
   const { kitchenLoad, addAssistanceRequest } = useOrder();
   const { showToast } = useToast();
 
@@ -478,7 +478,7 @@ const FoodDetailsScreen = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => addAssistanceRequest(tableNumber, 'Allergy assistance')}
+                      onClick={() => addAssistanceRequest(fulfillment.type, 'Allergy assistance')}
                       className="text-xs font-bold text-[#A30F3B] hover:underline"
                     >
                       Speak to staff about an allergy
@@ -544,7 +544,7 @@ const FoodDetailsScreen = () => {
 
           {!isOrderable && (
             <div className="p-3 rounded-xl bg-[#FFF5E3] border border-[#B96B08]/30 text-xs text-[#B96B08]">
-              This item is priced at MRP and isn't orderable through the app — please ask your server.
+              This item is priced at MRP and isn't orderable through the app — please contact support.
             </div>
           )}
         </article>
@@ -556,7 +556,7 @@ const FoodDetailsScreen = () => {
       <RestaurantTrustProfileModal
         isOpen={isTrustOpen}
         onClose={() => setIsTrustOpen(false)}
-        onRequestAssistance={(type) => addAssistanceRequest(tableNumber, type)}
+        onRequestAssistance={(type) => addAssistanceRequest(fulfillment.type, type)}
       />
 
       {/* Sticky Call-To-Action Footer */}
@@ -609,4 +609,3 @@ const FoodDetailsScreen = () => {
 };
 
 export default FoodDetailsScreen;
-

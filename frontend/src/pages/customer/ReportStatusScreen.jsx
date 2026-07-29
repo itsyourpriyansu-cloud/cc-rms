@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrder } from '../../context/OrderContext';
-import { useTable } from '../../context/TableContext';
 import { useToast } from '../../context/ToastContext';
 import { REPORT_STAGES } from '../../utils/issueCategories';
 import BottomNavBar from '../../components/layout/BottomNavBar';
@@ -9,8 +8,7 @@ import Icon from '../../components/common/Icon';
 
 const ReportStatusScreen = () => {
   const navigate = useNavigate();
-  const { activeOrder, issuesList, updateIssueWorkflow, confirmIssueResolution } = useOrder();
-  const { tableNumber } = useTable();
+  const { activeOrder, issuesList, confirmIssueResolution } = useOrder();
   const { showToast } = useToast();
 
   const [feedbackRating, setFeedbackRating] = useState(5);
@@ -19,7 +17,7 @@ const ReportStatusScreen = () => {
 
   // Pick active or most recent issue
   const currentIssue = issuesList?.find(
-    (iss) => (iss.orderId === activeOrder?.orderId || iss.tableNumber === tableNumber)
+    (iss) => iss.orderId === activeOrder?.orderId
   ) || issuesList?.[0];
 
   if (!currentIssue) {
@@ -31,7 +29,7 @@ const ReportStatusScreen = () => {
           </button>
           <h1 className="text-lg font-bold text-primary italic">Service Recovery</h1>
           <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
-            Table {tableNumber}
+            {activeOrder ? `Order #${activeOrder.orderId}` : 'Support'}
           </div>
         </header>
         <main className="flex-1 flex flex-col items-center justify-center px-4 text-center gap-3">
@@ -55,7 +53,7 @@ const ReportStatusScreen = () => {
       setShowFeedbackModal(true);
     } else {
       confirmIssueResolution(currentIssue.issueId, false);
-      showToast('Issue marked as NOT resolved. Staff notified to follow up at Table ' + tableNumber, 'warning');
+      showToast('Issue marked as not resolved. Support has been asked to follow up.', 'warning');
     }
   };
 
@@ -86,7 +84,7 @@ const ReportStatusScreen = () => {
         </button>
         <h1 className="text-lg font-bold text-primary italic">Issue Status & Recovery</h1>
         <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
-          Table {tableNumber}
+          Order #{activeOrder?.orderId || currentIssue.orderId}
         </div>
       </header>
 
@@ -167,7 +165,7 @@ const ReportStatusScreen = () => {
           <section className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-xs space-y-3 text-amber-950 dark:text-amber-200">
             <h4 className="font-bold text-sm text-amber-900 dark:text-amber-200">Has this issue been resolved?</h4>
             <p className="leading-relaxed">
-              Staff cannot close customer-facing complaints without your confirmation. Please confirm if the solution provided at your table is satisfactory.
+              Support cannot close this complaint without your confirmation. Please confirm whether the resolution is satisfactory.
             </p>
             <div className="flex flex-col sm:flex-row gap-2 pt-1">
               <button

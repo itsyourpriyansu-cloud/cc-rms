@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrder } from '../../context/OrderContext';
-import { useTable } from '../../context/TableContext';
+import { useCustomerSession } from '../../context/CustomerSessionContext';
 import { useToast } from '../../context/ToastContext';
 import { orderService } from '../../services/orderService';
 import { formatInvoiceAmount } from '../../utils/formatters';
@@ -16,7 +16,8 @@ import { AlertCircle } from 'lucide-react';
 const BillScreen = () => {
   const navigate = useNavigate();
   const { activeOrder } = useOrder();
-  const { tableNumber } = useTable();
+  const { fulfillment: savedFulfillment } = useCustomerSession();
+  const fulfillment = activeOrder?.fulfillment || savedFulfillment;
   const { showToast } = useToast();
 
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
@@ -25,8 +26,8 @@ const BillScreen = () => {
   const handlePayAtCounter = async () => {
     setIsNotifyingStaff(true);
     try {
-      await orderService.requestAssistance(tableNumber, 'Cash Settlement at Counter');
-      showToast(`Staff notified for cash collection at Table ${tableNumber}.`, 'success');
+      await orderService.requestAssistance(fulfillment.type, fulfillment.type === 'DELIVERY' ? 'Cash on Delivery' : 'Cash at Pickup');
+      showToast(fulfillment.type === 'DELIVERY' ? 'Cash on delivery selected.' : 'Cash payment at pickup selected.', 'success');
       setIsCashModalOpen(false);
     } catch (err) {
       showToast('Error notifying staff', 'error');
@@ -43,7 +44,7 @@ const BillScreen = () => {
           <EmptyState
             icon={() => <Icon name="receipt_long" className="text-4xl" />}
             title="No active bill found"
-            description="Place an order from our menu to generate a table bill."
+            description="Place an order from our menu to generate your bill."
             actionLabel="Go to Menu"
             onAction={() => navigate('/menu')}
           />
@@ -93,8 +94,8 @@ const BillScreen = () => {
                 <p className="text-lg font-bold text-on-surface">#{activeOrder.orderId}</p>
               </div>
               <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/30">
-                <p className="text-xs text-on-surface-variant uppercase mb-1">Table</p>
-                <p className="text-lg font-bold text-on-surface">{tableNumber}</p>
+                <p className="text-xs text-on-surface-variant uppercase mb-1">Order Type</p>
+                <p className="text-lg font-bold text-on-surface">{fulfillment.type === 'DELIVERY' ? 'Delivery' : 'Pickup'}</p>
               </div>
             </div>
 
@@ -150,7 +151,7 @@ const BillScreen = () => {
                   className="w-full h-14 bg-transparent border-2 border-primary text-primary rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary/5 active:scale-95 transition-all"
                 >
                   <Icon name="storefront" />
-                  Pay at Counter
+                  {fulfillment.type === 'DELIVERY' ? 'Cash on Delivery' : 'Pay at Pickup'}
                 </button>
               </div>
 
@@ -165,13 +166,13 @@ const BillScreen = () => {
 
       <BottomNavBar />
 
-      <Modal isOpen={isCashModalOpen} onClose={() => setIsCashModalOpen(false)} title="Pay At Counter / Cash Settlement">
+      <Modal isOpen={isCashModalOpen} onClose={() => setIsCashModalOpen(false)} title={fulfillment.type === 'DELIVERY' ? 'Cash on Delivery' : 'Pay at Pickup'}>
         <div className="space-y-4 text-center">
           <div className="w-16 h-16 bg-secondary-container/30 text-secondary rounded-full flex items-center justify-center mx-auto">
             <Icon name="storefront" className="text-3xl" />
           </div>
           <p className="text-sm text-on-surface-variant leading-relaxed">
-            Would you like to notify staff to come to Table {tableNumber} for cash/counter settlement of{' '}
+            Would you like to select {fulfillment.type === 'DELIVERY' ? 'cash payment when your order arrives' : 'cash payment at the pickup counter'} for{' '}
             <span className="font-bold text-on-surface">{formatInvoiceAmount(totals.totalPayable || totals.grandTotal)}</span>?
           </p>
           <div className="space-y-2 pt-2">
@@ -180,7 +181,7 @@ const BillScreen = () => {
               disabled={isNotifyingStaff}
               className="w-full h-12 bg-primary text-on-primary rounded-xl font-semibold disabled:opacity-60"
             >
-              {isNotifyingStaff ? 'Notifying...' : 'Notify Staff for Cash Payment'}
+              {isNotifyingStaff ? 'Saving...' : 'Confirm Cash Payment'}
             </button>
             <button
               onClick={() => setIsCashModalOpen(false)}

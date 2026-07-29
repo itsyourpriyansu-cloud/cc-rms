@@ -1,4 +1,4 @@
-import api, { mockApiDelay } from './api';
+import { mockApiDelay } from './api';
 import { generateOrderId } from '../utils/formatters';
 
 export const orderService = {
@@ -8,7 +8,9 @@ export const orderService = {
       // Production: const res = await api.post('/orders', orderPayload);
       const newOrder = {
         orderId: generateOrderId(),
-        tableNumber: orderPayload.tableNumber || '05',
+        customer: orderPayload.customer,
+        fulfillment: orderPayload.fulfillment,
+        orderType: orderPayload.fulfillment?.type || 'DELIVERY',
         items: orderPayload.items,
         totals: orderPayload.totals,
         specialNotes: orderPayload.specialNotes || '',

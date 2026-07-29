@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrder } from '../../context/OrderContext';
-import { useTable } from '../../context/TableContext';
+import { useCustomerSession } from '../../context/CustomerSessionContext';
 import { useToast } from '../../context/ToastContext';
 import { paymentService } from '../../services/paymentService';
 import { formatInvoiceAmount, deriveInvoiceNumber } from '../../utils/formatters';
@@ -16,7 +16,8 @@ import { CheckCircle2, MessageSquare, Camera, ShieldCheck, Download, UtensilsCro
 const ThankYouScreen = () => {
   const navigate = useNavigate();
   const { activeOrder, clearOrder, customerMemory, saveCustomerMemory, forgetCustomerMemory } = useOrder();
-  const { tableNumber } = useTable();
+  const { fulfillment: savedFulfillment } = useCustomerSession();
+  const fulfillment = activeOrder?.fulfillment || savedFulfillment;
   const { showToast } = useToast();
 
   const [isDownloading, setIsDownloading] = useState(false);
@@ -77,7 +78,7 @@ const ThankYouScreen = () => {
               {formatInvoiceAmount(totalPaid)} paid
             </p>
             <p className="text-[12px] text-[#6E5F58] mt-0.5">
-              Table {tableNumber || '05'} · Invoice {invoiceNumber}
+              {fulfillment.type === 'DELIVERY' ? 'Delivery' : 'Pickup'} order · Invoice {invoiceNumber}
             </p>
           </div>
         </section>
@@ -189,7 +190,7 @@ const ThankYouScreen = () => {
             className="h-11 px-6 text-[#A30F3B] font-bold flex items-center justify-center gap-2 hover:underline text-xs min-h-[44px] cursor-pointer"
           >
             <UtensilsCrossed className="w-4 h-4" />
-            Visit Again
+            Order Again
           </button>
         </div>
       </main>
@@ -224,4 +225,3 @@ const ThankYouScreen = () => {
 };
 
 export default ThankYouScreen;
-

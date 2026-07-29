@@ -1,9 +1,10 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { TableProvider } from './context/TableContext';
 import { CartProvider } from './context/CartContext';
 import { OrderProvider } from './context/OrderContext';
 import { ToastProvider } from './context/ToastContext';
+import { CustomerSessionProvider, useCustomerSession } from './context/CustomerSessionContext';
 import CustomerLayout from './components/layout/CustomerLayout';
 
 import WelcomeScreen from './pages/customer/WelcomeScreen';
@@ -31,14 +32,29 @@ import ProfileSettingsScreen from './pages/counter/ProfileSettingsScreen';
 import ManagerMainScreen from './pages/manager/ManagerMainScreen';
 import ManagerLoginScreen from './pages/manager/ManagerLoginScreen';
 import PortalGatewayScreen from './pages/portal/PortalGatewayScreen';
+import CustomerLoginScreen from './pages/customer/CustomerLoginScreen';
+import FulfillmentSetupScreen from './pages/customer/FulfillmentSetupScreen';
+import CustomerAccountScreen from './pages/customer/CustomerAccountScreen';
+
+const CustomerRouteGate = ({ children }) => {
+  const location = useLocation();
+  const { isAuthenticated } = useCustomerSession();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/customer/login" replace state={{ from: location.pathname }} />;
+  }
+
+  return children;
+};
 
 function App() {
   return (
     <Router>
       <ToastProvider>
-        <TableProvider>
-          <CartProvider>
-            <OrderProvider>
+        <CustomerSessionProvider>
+          <TableProvider>
+            <CartProvider>
+              <OrderProvider>
               <Routes>
                 {/* Central System Login & Navigation Portal Route */}
                 <Route path="/login" element={<PortalGatewayScreen />} />
@@ -64,37 +80,43 @@ function App() {
                 <Route path="/counter/daily-closing" element={<DailyClosingScreen />} />
                 <Route path="/counter/profile" element={<ProfileSettingsScreen />} />
 
+                <Route path="/customer/login" element={<CustomerLoginScreen />} />
+
                 {/* Customer Routes Wrapped in Customer Layout */}
                 <Route
                   path="/*"
                   element={
-                    <CustomerLayout>
-                      <Routes>
-                        <Route path="/" element={<WelcomeScreen />} />
-                        <Route path="/menu" element={<MenuScreen />} />
-                        <Route path="/menu/:id" element={<FoodDetailsScreen />} />
-                        <Route path="/cart" element={<CartScreen />} />
-                        <Route path="/order-confirmation" element={<OrderConfirmationScreen />} />
-                        <Route path="/order-tracking" element={<OrderTrackingScreen />} />
-                        <Route path="/report-issue" element={<ReportIssueScreen />} />
-                        <Route path="/report-submitted" element={<ReportSubmittedScreen />} />
-                        <Route path="/report-status" element={<ReportStatusScreen />} />
-                        <Route path="/bill" element={<BillScreen />} />
-                        <Route path="/payment" element={<PaymentScreen />} />
-                        <Route path="/success" element={<ThankYouScreen />} />
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                      </Routes>
-                    </CustomerLayout>
+                    <CustomerRouteGate>
+                      <CustomerLayout>
+                        <Routes>
+                          <Route path="/" element={<WelcomeScreen />} />
+                          <Route path="/delivery-details" element={<FulfillmentSetupScreen />} />
+                          <Route path="/account" element={<CustomerAccountScreen />} />
+                          <Route path="/menu" element={<MenuScreen />} />
+                          <Route path="/menu/:id" element={<FoodDetailsScreen />} />
+                          <Route path="/cart" element={<CartScreen />} />
+                          <Route path="/order-confirmation" element={<OrderConfirmationScreen />} />
+                          <Route path="/order-tracking" element={<OrderTrackingScreen />} />
+                          <Route path="/report-issue" element={<ReportIssueScreen />} />
+                          <Route path="/report-submitted" element={<ReportSubmittedScreen />} />
+                          <Route path="/report-status" element={<ReportStatusScreen />} />
+                          <Route path="/bill" element={<BillScreen />} />
+                          <Route path="/payment" element={<PaymentScreen />} />
+                          <Route path="/success" element={<ThankYouScreen />} />
+                          <Route path="*" element={<Navigate to="/" replace />} />
+                        </Routes>
+                      </CustomerLayout>
+                    </CustomerRouteGate>
                   }
                 />
               </Routes>
-            </OrderProvider>
-          </CartProvider>
-        </TableProvider>
+              </OrderProvider>
+            </CartProvider>
+          </TableProvider>
+        </CustomerSessionProvider>
       </ToastProvider>
     </Router>
   );
 }
 
 export default App;
-

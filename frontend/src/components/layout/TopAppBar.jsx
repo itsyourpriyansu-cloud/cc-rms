@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTable } from '../../context/TableContext';
 import { RESTAURANT_INFO } from '../../utils/mockData';
+import { useCustomerSession } from '../../context/CustomerSessionContext';
 import Icon from '../common/Icon';
-import { ShieldCheck, UtensilsCrossed } from 'lucide-react';
+import { Bike, MapPin, ShieldCheck, UtensilsCrossed } from 'lucide-react';
 
 /**
  * Top app bar with Trust Profile and secondary actions.
- * Brand variant features brand identity with fallback logic, 44px circular trust button, and table chip.
+ * Brand variant features brand identity, trust, order mode, and phone-profile access.
  */
 const TopAppBar = ({
   variant = 'brand',
@@ -17,11 +17,10 @@ const TopAppBar = ({
   onRightAction,
   transparent = false,
   onOpenTrustProfile,
-  onOpenPreferences,
   logoSrc,
 }) => {
   const navigate = useNavigate();
-  const { tableNumber } = useTable();
+  const { profile, fulfillment } = useCustomerSession();
   const [logoFailed, setLogoFailed] = useState(false);
 
   if (variant === 'back') {
@@ -108,20 +107,34 @@ const TopAppBar = ({
           {onOpenTrustProfile && (
             <button
               onClick={onOpenTrustProfile}
-              className="w-[44px] h-[44px] rounded-full bg-[#FFF7EE] hover:bg-[#FFF0E3] active:scale-95 border border-[#EADFD6] text-[#A30F3B] flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A30F3B] focus-visible:ring-offset-2 cursor-pointer"
+              className="hidden min-[430px]:flex w-[44px] h-[44px] rounded-full bg-[#FFF7EE] hover:bg-[#FFF0E3] active:scale-95 border border-[#EADFD6] text-[#A30F3B] items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A30F3B] focus-visible:ring-offset-2 cursor-pointer"
               aria-label="Open restaurant trust and safety information"
             >
               <ShieldCheck className="w-5 h-5 text-[#A30F3B]" aria-hidden="true" />
             </button>
           )}
 
-          {/* Table chip — ~44px high, maroon-soft background, subtle border */}
-          <div
-            className="h-[44px] px-3.5 rounded-full bg-[#FBECEF] text-[#A30F3B] text-[13px] font-bold border border-[#A30F3B]/20 text-center shrink-0 flex items-center justify-center"
-            aria-label={`Your table: ${tableNumber}`}
+          {/* Delivery or pickup mode */}
+          <button
+            type="button"
+            onClick={() => navigate('/delivery-details')}
+            className="h-[44px] px-3 rounded-full bg-[#FBECEF] text-[#A30F3B] text-[12px] font-bold border border-[#A30F3B]/20 shrink-0 flex items-center justify-center gap-1.5"
+            aria-label={`Order method: ${fulfillment.type === 'DELIVERY' ? 'Delivery' : 'Pickup'}`}
           >
-            Table {tableNumber}
-          </div>
+            {fulfillment.type === 'DELIVERY' ? <Bike className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
+            <span className="hidden min-[390px]:inline">
+              {fulfillment.type === 'DELIVERY' ? 'Delivery' : 'Pickup'}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/account')}
+            className="w-[44px] h-[44px] rounded-full bg-[#A30F3B] text-white flex items-center justify-center font-black text-sm border border-[#7E0D2F] shadow-sm"
+            aria-label="Open customer account"
+          >
+            {(profile?.firstName || 'G').charAt(0).toUpperCase()}
+          </button>
         </div>
       </div>
     </header>
@@ -129,4 +142,3 @@ const TopAppBar = ({
 };
 
 export default TopAppBar;
-

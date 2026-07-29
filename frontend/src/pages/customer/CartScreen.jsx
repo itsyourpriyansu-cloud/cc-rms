@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
-import { useTable } from '../../context/TableContext';
 import { useOrder } from '../../context/OrderContext';
+import { useCustomerSession } from '../../context/CustomerSessionContext';
 import { useToast } from '../../context/ToastContext';
 import { orderService } from '../../services/orderService';
 import { cartService } from '../../services/cartService';
@@ -14,11 +14,11 @@ import Icon from '../../components/common/Icon';
 import BillingSummary from '../../components/common/BillingSummary';
 import CustomizationModal from '../../components/menu/CustomizationModal';
 import HonestExpectationBanner from '../../components/order/HonestExpectationBanner';
-import { AlertTriangle, Edit3, Trash2, Plus, Minus } from 'lucide-react';
+import { AlertTriangle, Bike, ChevronRight, Edit3, MapPin, Trash2, Plus, Minus } from 'lucide-react';
 
 const CartScreen = () => {
   const navigate = useNavigate();
-  const { tableNumber } = useTable();
+  const { profile, fulfillment, hasFulfillmentDetails } = useCustomerSession();
   const {
     cartItems,
     updateQuantity,
@@ -70,9 +70,23 @@ const CartScreen = () => {
 
   const handlePlaceOrder = async () => {
     if (cartItems.length === 0) return;
+    if (!hasFulfillmentDetails) {
+      showToast('Add your delivery or pickup details before placing the order', 'warning');
+      navigate('/delivery-details');
+      return;
+    }
     setIsPlacingOrder(true);
     try {
-      const payload = { tableNumber, items: cartItems, totals, specialNotes: specialOrderNotes };
+      const payload = {
+        customer: {
+          firstName: profile?.firstName,
+          phone: profile?.phone,
+        },
+        fulfillment,
+        items: cartItems,
+        totals,
+        specialNotes: specialOrderNotes,
+      };
       const res = await orderService.createOrder(payload);
       placeOrder(res.data);
       clearCart();
@@ -123,8 +137,31 @@ const CartScreen = () => {
       <main className="flex-1 pt-20 pb-56 md:pb-16 max-w-[1280px] mx-auto w-full px-4 md:px-10">
         <header className="mb-4">
           <h2 className="text-2xl md:text-4xl font-bold text-ink">Your Selection</h2>
-          <p className="text-sm text-muted mt-1">Table {tableNumber} &bull; Review your order before sending it to the kitchen.</p>
+          <p className="text-sm text-muted mt-1">
+            {fulfillment.type === 'DELIVERY' ? 'Delivery order' : 'Self pickup'} &bull; Review everything before sending it to the kitchen.
+          </p>
         </header>
+
+        <button
+          type="button"
+          onClick={() => navigate('/delivery-details')}
+          className="w-full mb-5 bg-white rounded-2xl border border-border p-4 flex items-center gap-3 text-left shadow-sm"
+        >
+          <span className="w-10 h-10 rounded-xl bg-[#FBECEF] text-[#A30F3B] flex items-center justify-center shrink-0">
+            {fulfillment.type === 'DELIVERY' ? <Bike className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#E97818] block">
+              {fulfillment.type === 'DELIVERY' ? `Deliver to ${fulfillment.label}` : 'Self pickup'}
+            </span>
+            <span className="text-xs font-bold text-ink truncate block mt-0.5">
+              {fulfillment.type === 'DELIVERY'
+                ? fulfillment.addressLine || 'Add delivery address'
+                : 'Mangamma Ruchulu Cloud Kitchen'}
+            </span>
+          </span>
+          <ChevronRight className="w-4 h-4 text-muted" />
+        </button>
 
         <section className="mb-6">
           <HonestExpectationBanner
@@ -232,7 +269,7 @@ const CartScreen = () => {
                 rows={2}
                 value={specialOrderNotes}
                 onChange={(e) => setSpecialOrderNotes(e.target.value)}
-                placeholder="e.g. Please bring water first, separate bill requested, etc."
+                placeholder="e.g. Call on arrival, leave at security, less plastic, etc."
                 className="w-full bg-surface-container-lowest border border-border rounded-xl p-3 focus:ring-2 focus:ring-maroon-700/40 text-xs placeholder:text-muted shadow-sm resize-none outline-none"
               />
             </div>
@@ -375,7 +412,7 @@ const CartScreen = () => {
             disabled={isPlacingOrder}
             className="flex-[2] h-12 bg-saffron-600 text-white rounded-xl font-bold active:scale-95 shadow-md text-xs disabled:opacity-60"
           >
-            {isPlacingOrder ? 'Placing...' : 'Review Order'}
+            {isPlacingOrder ? 'Placing...' : 'Place Order'}
           </button>
         </div>
       </div>
