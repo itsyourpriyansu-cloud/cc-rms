@@ -34,14 +34,16 @@ each completed step.
     server pricing, signed provider verification, idempotent quote/payment/order
     transactions, allergen acknowledgement, kitchen-task creation and outbox
     records are implemented and tested on the PostgreSQL-compatible engine.
-  - [ ] **Step 4C — Kitchen and tracking APIs:** task orchestration, milestone
-    stream and customer tracking UI.
+  - [x] **Step 4C — Kitchen and tracking APIs:** signed and outlet-authorized
+    task/delivery commands, deterministic order projection, append-only
+    milestones, event-driven SSE, short-retention rider coordinates and the
+    authenticated customer tracking adapter are implemented and tested.
   - [ ] **Step 4D — Order-risk shadow mode:** measured prediction, explanation
     and manager-visible evidence without autonomous operational action.
 - [ ] **Step 5 — Manager exception workflow:** evidence, approval, action,
   verification and rollback.
 
-Implementation files for Steps 1 through 4B are documented in
+Implementation files for Steps 1 through 4C are documented in
 [`backend/README.md`](../backend/README.md).
 
 ---
@@ -827,46 +829,42 @@ These create cost and risk without strengthening the core operating loop.
 
 ## 14. The next task to build
 
-The immediate task should be:
+Steps 1 through 4C now establish authenticated customers, persisted commerce,
+kitchen state projection and privacy-scoped live delivery tracking. The
+immediate implementation task is:
 
-> **Build the production data foundation and an end-to-end “order at risk” vertical slice—from customer checkout, through the operational digital twin and manager approval, to the live customer tracking timeline.**
+> **Build Step 4D order-risk shadow mode, while completing the production
+> guardrail pack required to release Steps 4A through 4C.**
 
-This is more valuable than adding another frontend screen because it proves the architecture and unlocks the later agents.
+The shadow agent must measure and explain risk without changing an order,
+promise, menu or kitchen task. Manager actions remain human-controlled until
+evaluation thresholds and the Step 5 approval protocol pass.
 
 ### Sprint scope
 
-1. PostgreSQL schema and migrations for:
-   - tenant, outlet, user, role and session;
-   - customer, recipient, preference and consent;
-   - menu, recipe, stock and availability;
-   - order, order line, promise and status event;
-   - kitchen station and task;
-   - delivery milestone;
-   - event outbox;
-   - AI proposal, approval and action receipt.
-2. Phone-OTP provider interface with a development adapter.
-3. Tenant-aware APIs and database access.
-4. Canonical order state machine with idempotent commands.
-5. Transactional outbox and CloudEvents-compatible envelope.
-6. Live digital-twin projection for queue, station load and order risk.
-7. Rule-based first version of the Order Promise Agent.
-8. Manager exception card with evidence, expiry and approval.
-9. Allowlisted `adjust_promise` and `pause_item` tools.
-10. Customer tracking timeline updated through server-sent events.
-11. Audit, correlation, replay and basic evaluation.
+1. Derive an order-risk feature snapshot from persisted order, kitchen-task,
+   promise and delivery facts.
+2. Add a deterministic rule-based baseline before any model call.
+3. Store append-only shadow predictions with evidence, confidence, model/rule
+   version and evaluation outcome.
+4. Expose manager-readable risk evidence without offering an execution tool.
+5. Measure precision, recall, lead time and false-alert cost against completed
+   orders.
+6. Add real-PostgreSQL migration/concurrency CI, outbox delivery, telemetry,
+   dependency/security gates and release evidence.
+7. Keep the browser checkout adapter disabled until live gateway certification
+   and the production database gates pass.
 
 ### Acceptance criteria
 
-- A customer can authenticate by phone and place a real persisted order.
-- Repeating the same checkout or webhook does not duplicate an order or payment intent.
-- The kitchen receives tasks derived from recipes and order modifiers.
-- The customer and manager see the same verified milestones.
-- When the calculated promise is at risk, a typed proposal appears with evidence and an expiry.
-- An approved action is executed once, verified and recorded with before/after state.
-- An unapproved or expired proposal cannot act.
-- A user from one tenant cannot access another tenant's data.
-- Every request, event, proposal, approval and action can be followed by one correlation ID.
-- AI/model failure falls back safely without blocking ordering.
+- No shadow prediction can invoke an operational tool or mutate order state.
+- Every prediction references the exact feature snapshot and rule/model version.
+- Evaluation can compare predictions with the eventual delivered/late outcome.
+- Tenant and outlet isolation hold for features, predictions and manager views.
+- Rule/model failure never blocks checkout, kitchen work or tracking.
+- Alerts are suppressed until documented evaluation thresholds are met.
+- Steps 4A through 4C pass real-PostgreSQL, security and release rehearsals
+  before the frontend switches from its browser checkout adapter.
 
 ### Definition of success for the first pilot
 

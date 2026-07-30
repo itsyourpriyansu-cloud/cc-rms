@@ -24,6 +24,7 @@ import DeliveryTrackingMap from '../../components/customer/DeliveryTrackingMap';
 import { useOrder } from '../../context/OrderContext';
 import { useCustomerSession } from '../../context/CustomerSessionContext';
 import { useToast } from '../../context/ToastContext';
+import { useLiveOrderTracking } from '../../hooks/useLiveOrderTracking';
 
 const DELIVERY_STAGES = [
   { status: 'received', label: 'Order confirmed', detail: 'The kitchen received your order.', icon: CheckCircle2 },
@@ -47,20 +48,83 @@ const OrderTrackingScreen = () => {
   const { showToast } = useToast();
   const { activeOrder, updateOrderStatus } = useOrder();
   const { fulfillment: savedFulfillment, profile } = useCustomerSession();
+  const persistedOrderId =
+    activeOrder?.serverOrderId ||
+    (String(activeOrder?.orderId || '').startsWith('ord_')
+      ? activeOrder.orderId
+      : null);
+  const {
+    tracking: liveTracking,
+    connection: trackingConnection,
+  } = useLiveOrderTracking(persistedOrderId, Boolean(persistedOrderId));
   const fulfillment = activeOrder?.fulfillment || savedFulfillment;
-  const isDelivery = fulfillment.type === 'DELIVERY';
+  const isLive = Boolean(liveTracking);
+  const isDelivery = isLive
+    ? liveTracking.fulfilmentType === 'delivery'
+    : fulfillment.type === 'DELIVERY';
   const stages = isDelivery ? DELIVERY_STAGES : PICKUP_STAGES;
-  const stageIndex = Math.min(activeOrder?.stageIndex || 0, stages.length - 1);
+  const liveStageIndex = {
+    pending_payment: 0,
+    placed: 0,
+    confirmed: 0,
+    preparing: 1,
+    ready: 2,
+    rider_assigned: 2,
+    picked_up: 3,
+    delivered: stages.length - 1,
+  }[liveTracking?.status];
+  const stageIndex = Math.min(
+    isLive ? liveStageIndex ?? 0 : activeOrder?.stageIndex || 0,
+    stages.length - 1
+  );
   const currentStage = stages[stageIndex];
-  const riderAssigned = isDelivery && stageIndex >= 2;
+  const riderAssigned =
+    isDelivery && (Boolean(liveTracking?.rider) || stageIndex >= 2);
   const riderProgress = isDelivery ? STAGE_PROGRESS[stageIndex] : 0;
+  const latestMilestone = liveTracking?.milestones?.at(-1);
+  const mapKitchen = isLive
+    ? {
+        lat: liveTracking.kitchen.latitude,
+        lng: liveTracking.kitchen.longitude,
+        label: liveTracking.kitchen.label,
+      }
+    : undefined;
+  const mapDestination =
+    isLive && liveTracking.destination
+      ? {
+          lat: liveTracking.destination.latitude,
+          lng: liveTracking.destination.longitude,
+        }
+      : fulfillment.location;
+  const liveRiderPosition = liveTracking?.rider?.position
+    ? {
+        lat: liveTracking.rider.position.latitude,
+        lng: liveTracking.rider.position.longitude,
+      }
+    : null;
 
   const etaText = useMemo(() => {
     if (!activeOrder) return '';
     if (stageIndex === stages.length - 1) return isDelivery ? 'Delivered' : 'Collected';
+    if (liveTracking?.promisedAt) {
+      const remainingMinutes = Math.max(
+        1,
+        Math.ceil(
+          (new Date(liveTracking.promisedAt).getTime() - Date.now()) / 60_000
+        )
+      );
+      return `${remainingMinutes} min`;
+    }
     if (isDelivery && stageIndex >= 3) return '12-18 min';
     return `${fulfillment.etaMinutes || 35}-${(fulfillment.etaMinutes || 35) + 8} min`;
-  }, [activeOrder, fulfillment.etaMinutes, isDelivery, stageIndex, stages.length]);
+  }, [
+    activeOrder,
+    fulfillment.etaMinutes,
+    isDelivery,
+    liveTracking?.promisedAt,
+    stageIndex,
+    stages.length,
+  ]);
 
   const advanceDemoStage = () => {
     const nextIndex = Math.min(stageIndex + 1, stages.length - 1);
@@ -100,7 +164,7 @@ const OrderTrackingScreen = () => {
               {isDelivery ? 'Track your delivery' : 'Pickup progress'}
             </h1>
           </div>
-          {stageIndex < stages.length - 1 && (
+          {!persistedOrderId && stageIndex < stages.length - 1 && (
             <button
               type="button"
               onClick={advanceDemoStage}
@@ -117,10 +181,16 @@ const OrderTrackingScreen = () => {
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-bold">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Live order status
+                {isLive
+                  ? trackingConnection === 'live'
+                    ? 'Live order status'
+                    : 'Reconnecting securely'
+                  : 'Interactive order preview'}
               </span>
               <h2 className="text-xl font-black mt-3">{currentStage.label}</h2>
-              <p className="text-xs text-white/75 mt-1">{currentStage.detail}</p>
+              <p className="text-xs text-white/75 mt-1">
+                {latestMilestone?.message || currentStage.detail}
+              </p>
             </div>
             <span className="w-12 h-12 rounded-2xl bg-white/12 flex items-center justify-center shrink-0">
               <currentStage.icon className="w-6 h-6" />
@@ -139,9 +209,13 @@ const OrderTrackingScreen = () => {
 
         {isDelivery ? (
           <DeliveryTrackingMap
-            destination={fulfillment.location}
+            kitchen={mapKitchen}
+            destination={mapDestination}
             progress={riderProgress}
             riderAssigned={riderAssigned}
+            riderPosition={liveRiderPosition}
+            isLive={isLive}
+            positionFreshness={liveTracking?.rider?.position?.freshness}
           />
         ) : (
           <section className="rounded-[22px] bg-white border border-[#EADFD6] p-5 shadow-sm">
@@ -163,8 +237,12 @@ const OrderTrackingScreen = () => {
             </span>
             <div className="flex-1">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] uppercase tracking-wider font-black text-emerald-700">Reliability guarantee</p>
-                <span className="text-[9px] font-black rounded-lg bg-white px-2 py-1 text-emerald-800">₹75 protection</span>
+                <p className="text-[10px] uppercase tracking-wider font-black text-emerald-700">
+                  Verified reliability
+                </p>
+                <span className="text-[9px] font-black rounded-lg bg-white px-2 py-1 text-emerald-800">
+                  {isLive ? 'Server verified' : 'Preview'}
+                </span>
               </div>
               <h2 className="font-black text-emerald-950 mt-1">
                 {stageIndex === stages.length - 1 ? 'Delivery window completed' : `Current promised window: ${etaText}`}
@@ -172,7 +250,9 @@ const OrderTrackingScreen = () => {
               <p className="text-[11px] leading-relaxed text-emerald-800 mt-1">
                 {activeOrder.previousEstimate
                   ? `ETA changed from ${activeOrder.previousEstimate}. ${activeOrder.etaChangeReason || 'The kitchen updated the estimate after a preparation check.'}`
-                  : 'If we miss the final guaranteed window, eligible credit is added after server-side delivery verification.'}
+                  : isLive
+                    ? 'Kitchen and delivery milestones are verified against the persisted order. Any delay explanation will appear here.'
+                    : 'Guarantee and credit eligibility will be shown only after server-side order verification.'}
               </p>
             </div>
           </div>
@@ -188,12 +268,16 @@ const OrderTrackingScreen = () => {
           </div>
           <div className="grid grid-cols-2 gap-2 mt-3">
             {[
-              { label: 'Tamper seal', readyAt: 2 },
-              { label: 'Hot/cold separated', readyAt: 2 },
-              { label: 'Item count checked', readyAt: 2 },
-              { label: 'Rider handoff logged', readyAt: 3 },
+              { label: 'Tamper seal', readyAt: 2, milestone: 'quality_checked' },
+              { label: 'Hot/cold separated', readyAt: 2, milestone: 'quality_checked' },
+              { label: 'Item count checked', readyAt: 2, milestone: 'quality_checked' },
+              { label: 'Rider handoff logged', readyAt: 3, milestone: 'picked_up' },
             ].map((check) => {
-              const complete = stageIndex >= check.readyAt;
+              const complete = isLive
+                ? liveTracking.milestones.some(
+                    (milestone) => milestone.type === check.milestone
+                  )
+                : stageIndex >= check.readyAt;
               return (
                 <div key={check.label} className={`rounded-xl border p-2.5 flex items-center gap-2 ${complete ? 'border-emerald-200 bg-emerald-50' : 'border-[#EADFD6] bg-[#FFF8F1]'}`}>
                   <CheckCircle2 className={`w-4 h-4 ${complete ? 'text-emerald-700' : 'text-[#B6A8A0]'}`} />
@@ -210,8 +294,13 @@ const OrderTrackingScreen = () => {
               RK
             </div>
             <div className="flex-1">
-              <p className="text-xs font-black text-[#211917]">Ravi Kumar</p>
-              <p className="text-[11px] text-[#705F58]">Delivery partner • TS09 AB 2481</p>
+              <p className="text-xs font-black text-[#211917]">
+                {liveTracking?.rider?.displayName || 'Ravi Kumar'}
+              </p>
+              <p className="text-[11px] text-[#705F58]">
+                Delivery partner •{' '}
+                {liveTracking?.rider?.vehicleLabelMasked || 'TS09 AB 2481'}
+              </p>
             </div>
             <button
               type="button"
@@ -304,7 +393,9 @@ const OrderTrackingScreen = () => {
         </button>
 
         <p className="text-center text-[10px] text-[#95847C]">
-          Rider positions are simulated in this frontend build. Production connects this map to authenticated rider GPS events.
+          {isLive
+            ? 'Tracking uses authenticated, short-retention rider events. Location sharing stops after delivery.'
+            : 'Preview data is shown until a persisted checkout provides authenticated live tracking.'}
         </p>
       </main>
 

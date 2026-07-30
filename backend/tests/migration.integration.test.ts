@@ -46,6 +46,10 @@ describe('PostgreSQL foundation migration', () => {
       resolve(process.cwd(), 'migrations/0004_checkout_api.sql'),
       'utf8',
     );
+    const liveTrackingMigration = await readFile(
+      resolve(process.cwd(), 'migrations/0005_live_tracking.sql'),
+      'utf8',
+    );
 
     await database.exec(foundationMigration);
     await database.exec(authMigration);
@@ -309,6 +313,7 @@ describe('PostgreSQL foundation migration', () => {
       GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO rms_application;
     `);
     await database.exec(checkoutApiMigration);
+    await database.exec(liveTrackingMigration);
     await database.exec(`
       GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO rms_application;
     `);
@@ -334,6 +339,8 @@ describe('PostgreSQL foundation migration', () => {
             'payment_intents',
             'kitchen_tasks',
             'delivery_milestones',
+            'delivery_assignments',
+            'delivery_location_events',
             'order_risk_snapshots'
           )
         ORDER BY table_name
@@ -344,6 +351,8 @@ describe('PostgreSQL foundation migration', () => {
       'checkout_quotes',
       'customer_otp_challenges',
       'customer_sessions',
+      'delivery_assignments',
+      'delivery_location_events',
       'delivery_milestones',
       'kitchen_tasks',
       'maos_events',
@@ -431,13 +440,15 @@ describe('PostgreSQL foundation migration', () => {
           'payment_intents',
           'kitchen_tasks',
           'delivery_milestones',
+          'delivery_assignments',
+          'delivery_location_events',
           'order_risk_snapshots'
         )
         ORDER BY relname
       `,
     );
 
-    expect(result.rows).toHaveLength(7);
+    expect(result.rows).toHaveLength(9);
     expect(
       result.rows.every(
         (row) => row.relrowsecurity && row.relforcerowsecurity,

@@ -987,8 +987,8 @@ rollout or all automatic actions, and fall back to deterministic/manual flow.
 
 | Risk | Current state | Priority | Required treatment |
 |---|---|---:|---|
-| Browser/mock order truth | present | P0 | Step 4 persisted order vertical slice |
-| No staff server authorization | absent | P0 | staff identity, role/outlet policy and tests |
+| Browser/mock order truth | backend vertical slice through live tracking is implemented; frontend switch is gated | P0 | real PostgreSQL and live-provider certification |
+| No staff server authorization | signed internal boundary plus database outlet-role checks implemented for Step 4C | P0 | replace shared integration secret with workload identity before multi-service scale |
 | React Router high advisory | audit finding; affected RSC API not used | P0 | upgrade/mitigation test and documented acceptance until closed |
 | No real PostgreSQL CI | absent | P0 | service container integration and migration upgrade tests |
 | No outbox worker | absent | P0 | leasing, retry/dead-letter, lag metrics and replay |
@@ -1055,7 +1055,7 @@ selected live payment-gateway certification.
 
 The next implementation task is:
 
-> **Production Guardrail Pack + Step 4C Kitchen and Live Tracking**
+> **Production Guardrail Pack + Step 4D Order-Risk Shadow Mode**
 
 It should be split into two reviewable commits/PRs.
 
@@ -1090,7 +1090,22 @@ It should be split into two reviewable commits/PRs.
 - atomic order, order-line, kitchen-task, milestone, event and outbox commit;
 - retry and tamper integration tests.
 
-### Remaining production acceptance and Step 4C
+### Completed implementation unit — Step 4C kitchen and live tracking
+
+- signed internal operations boundary with canonical request verification;
+- outlet-authorized kitchen and manager actions with optimistic versions;
+- deterministic kitchen-to-order and delivery-to-order state projection;
+- append-only customer milestones and typed outbox events;
+- one PostgreSQL notification listener with per-order SSE fan-out, heartbeat
+  and recovery polling;
+- authenticated customer snapshot and stream endpoints;
+- idempotent, accuracy-scoped delivery location ingestion;
+- automatic location-sharing shutdown at delivery and 24-hour coordinate
+  expiry;
+- customer tracking adapter that preserves the current preview flow for
+  non-persisted browser orders.
+
+### Remaining production acceptance and Step 4D
 
 - [ ] migrations pass from empty and current schema on real PostgreSQL CI;
 - [x] malicious cross-tenant reads and relationships fail in integration tests;
@@ -1102,9 +1117,17 @@ It should be split into two reviewable commits/PRs.
 - [x] signed normalized provider verification is implemented;
 - [x] every committed quote/payment/order fact writes its outbox event in the
   same transaction;
+- [x] kitchen and delivery transitions project customer-visible milestones;
+- [x] duplicate partner location events are accepted without duplicate facts;
+- [x] rider coordinates stop being returned or replayed after delivery;
+- [ ] SSE reconnect, notification fan-out and location-retention cleanup pass
+  soak/load tests on real PostgreSQL;
 - [ ] the chosen live gateway adapter and reconciliation job are certified;
+- [ ] the chosen delivery-provider adapter and webhook contract are certified;
 - [ ] retry and true concurrent checkout tests pass on real PostgreSQL;
 - [ ] rollback/forward-fix and release evidence exist.
+- [ ] Step 4D stores immutable order-risk feature snapshots and shadow outcomes
+  without executing operational changes.
 
 ---
 

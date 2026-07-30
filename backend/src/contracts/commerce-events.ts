@@ -58,6 +58,30 @@ export const KitchenTaskCreatedEventDataSchema = z.object({
   expectedDurationSeconds: z.number().int().positive(),
 });
 
+export const KitchenTaskStatusChangedEventDataSchema = z.object({
+  orderId: OrderIdSchema,
+  taskId: KitchenTaskIdSchema,
+  fromStatus: z.string().trim().min(1).max(80),
+  toStatus: z.string().trim().min(1).max(80),
+  version: z.number().int().positive(),
+  occurredAt: z.iso.datetime({ offset: true }),
+});
+
+export const DeliveryAssignmentUpdatedEventDataSchema = z.object({
+  orderId: OrderIdSchema,
+  assignmentId: z.string().trim().min(6).max(80),
+  status: z.enum(['assigned', 'picked_up', 'delivered', 'cancelled']),
+  occurredAt: z.iso.datetime({ offset: true }),
+});
+
+export const DeliveryLocationUpdatedEventDataSchema = z.object({
+  orderId: OrderIdSchema,
+  assignmentId: z.string().trim().min(6).max(80),
+  accuracyMetres: z.number().positive().max(10_000),
+  recordedAt: z.iso.datetime({ offset: true }),
+  visibility: z.enum(['exact', 'coarse']),
+});
+
 export const DeliveryMilestoneRecordedEventDataSchema = z.object({
   orderId: OrderIdSchema,
   milestoneType: z.string().trim().min(1).max(80),

@@ -87,6 +87,32 @@ The built-in HTTP adapter is a low-cost normalization boundary. Before a live
 launch, map it to the selected gateway, certify its webhook fields/signature
 rules and run the concurrency suite against real PostgreSQL.
 
+### Step 4C — kitchen operations and live tracking
+
+The order execution and customer tracking path now provides:
+
+- signed HMAC-authenticated internal kitchen and delivery commands;
+- database-backed staff/outlet authorization for kitchen and manager actions;
+- optimistic kitchen-task and delivery-assignment versions;
+- deterministic projection from task completion through ready, rider assigned,
+  picked up and delivered order states;
+- append-only, customer-safe milestones and typed outbox events;
+- a single PostgreSQL `LISTEN` connection that fans notifications out to active
+  customer SSE streams, with recovery polling and heartbeats;
+- idempotent partner location ingestion with exact, coarse and hidden accuracy
+  classes;
+- location sharing only while an assignment is picked up, with 24-hour event
+  expiry and no historical coordinate replay after delivery;
+- authenticated customer snapshot/stream APIs and a frontend adapter for the
+  existing order-tracking screen;
+- integration coverage for transitions, duplicate location callbacks, live
+  snapshots and post-delivery privacy.
+
+Internal operations clients must send the tenant, outlet, actor and role headers
+plus a timestamp and canonical request signature generated with
+`OPERATIONS_API_SECRET`. Keep this key in a managed secret store, rotate it with
+overlap at the integration gateway and never embed it in a staff or rider app.
+
 ## Commands
 
 ```bash
@@ -112,7 +138,9 @@ configured.
 
 ## Next step
 
-Build Step 4C: kitchen-task operations, append-only customer milestones, an SSE
-tracking stream and the customer tracking adapter. Keep the current browser
-checkout adapter in place until real-PostgreSQL concurrency CI and the selected
-payment-provider certification pass.
+Build Step 4D order-risk shadow mode: immutable feature snapshots,
+deterministic baseline scoring, explainable risk evidence and outcome
+evaluation, with no autonomous actions. In parallel, complete real-PostgreSQL
+concurrency CI, outbox delivery, observability and selected payment/delivery
+provider certification. Keep the current browser checkout adapter in place
+until those release gates pass.

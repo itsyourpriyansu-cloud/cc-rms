@@ -53,14 +53,29 @@ const pointOnRoute = (points, progress) => {
   };
 };
 
-const DeliveryTrackingMap = ({ destination, progress = 0, riderAssigned = false }) => {
-  const route = useMemo(() => makeRoute(KITCHEN_LOCATION, destination), [destination]);
-  const riderPosition = useMemo(() => pointOnRoute(route, progress), [route, progress]);
+const DeliveryTrackingMap = ({
+  kitchen = KITCHEN_LOCATION,
+  destination,
+  progress = 0,
+  riderAssigned = false,
+  riderPosition: liveRiderPosition = null,
+  isLive = false,
+  positionFreshness = 'stale',
+}) => {
+  const route = useMemo(
+    () => (isLive ? [kitchen, destination] : makeRoute(kitchen, destination)),
+    [destination, isLive, kitchen]
+  );
+  const simulatedRiderPosition = useMemo(
+    () => pointOnRoute(route, progress),
+    [route, progress]
+  );
+  const riderPosition = liveRiderPosition || simulatedRiderPosition;
 
   return (
     <div className="rounded-[22px] overflow-hidden border border-[#EADFD6] bg-white shadow-sm">
       <MapContainer
-        center={[KITCHEN_LOCATION.lat, KITCHEN_LOCATION.lng]}
+        center={[kitchen.lat, kitchen.lng]}
         zoom={13}
         scrollWheelZoom={false}
         className="h-[285px] w-full"
@@ -75,11 +90,11 @@ const DeliveryTrackingMap = ({ destination, progress = 0, riderAssigned = false 
           pathOptions={{ color: '#A30F3B', weight: 5, opacity: 0.82, dashArray: '9 8' }}
         />
         <CircleMarker
-          center={[KITCHEN_LOCATION.lat, KITCHEN_LOCATION.lng]}
+          center={[kitchen.lat, kitchen.lng]}
           radius={10}
           pathOptions={{ color: '#FFFFFF', fillColor: '#8D1230', fillOpacity: 1, weight: 4 }}
         >
-          <Popup>{KITCHEN_LOCATION.label}</Popup>
+          <Popup>{kitchen.label}</Popup>
         </CircleMarker>
         <CircleMarker
           center={[destination.lat, destination.lng]}
@@ -97,7 +112,7 @@ const DeliveryTrackingMap = ({ destination, progress = 0, riderAssigned = false 
             <Popup>Rider location</Popup>
           </CircleMarker>
         )}
-        <FitRoute points={[KITCHEN_LOCATION, destination]} />
+        <FitRoute points={[kitchen, destination]} />
       </MapContainer>
 
       <div className="px-4 py-3 bg-[#FFF8F1] flex items-center justify-between gap-3">
@@ -107,10 +122,18 @@ const DeliveryTrackingMap = ({ destination, progress = 0, riderAssigned = false 
             <span className="relative inline-flex rounded-full w-2.5 h-2.5 bg-emerald-600" />
           </span>
           <span className="text-[11px] font-bold text-[#211917]">
-            {riderAssigned ? 'Live rider position' : 'Route ready after rider pickup'}
+            {riderAssigned
+              ? isLive
+                ? positionFreshness === 'live'
+                  ? 'Live rider position'
+                  : 'Last verified rider position'
+                : 'Preview rider position'
+              : 'Route ready after rider pickup'}
           </span>
         </div>
-        <span className="text-[10px] text-[#705F58]">Map data © OpenStreetMap</span>
+        <span className="text-[10px] text-[#705F58]">
+          {isLive ? 'Indicative route' : 'Preview'} · Map data © OpenStreetMap
+        </span>
       </div>
     </div>
   );

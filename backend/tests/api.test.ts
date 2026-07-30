@@ -3,6 +3,8 @@ import { buildApp } from '../src/api/app.js';
 import { AuthError, type AuthConfig } from '../src/auth/index.js';
 import type { CustomerAuthService } from '../src/auth/service.js';
 import { CommerceError, type CommerceService } from '../src/commerce/index.js';
+import type { OperationsRequestVerifier } from '../src/operations/index.js';
+import type { TrackingService } from '../src/tracking/index.js';
 
 const authConfig: AuthConfig = {
   nodeEnv: 'test',
@@ -78,6 +80,45 @@ const createCommerceService = () =>
     CommerceService,
     'createQuote' | 'createPaymentIntent' | 'applyPaymentWebhook' | 'checkout'
   >;
+
+const createTrackingService = () =>
+  ({
+    getCustomerSnapshot: vi.fn().mockResolvedValue({
+      orderId: 'ord_demo01',
+      status: 'preparing',
+      latestSequence: 12,
+    }),
+    listCustomerEvents: vi.fn().mockResolvedValue({
+      events: [],
+      latestSequence: 12,
+    }),
+    transitionKitchenTask: vi.fn().mockResolvedValue({
+      taskId: 'tsk_demo01',
+      status: 'in_progress',
+      version: 2,
+    }),
+    assignDelivery: vi.fn(),
+    updateDeliveryStatus: vi.fn(),
+    recordDeliveryLocation: vi.fn(),
+  }) satisfies Pick<
+    TrackingService,
+    | 'getCustomerSnapshot'
+    | 'listCustomerEvents'
+    | 'transitionKitchenTask'
+    | 'assignDelivery'
+    | 'updateDeliveryStatus'
+    | 'recordDeliveryLocation'
+  >;
+
+const createOperationsVerifier = () =>
+  ({
+    verify: vi.fn().mockReturnValue({
+      tenantId: 'ten_demo01',
+      outletId: 'out_demo01',
+      actorId: 'usr_demo01',
+      role: 'kitchen',
+    }),
+  }) satisfies Pick<OperationsRequestVerifier, 'verify'>;
 
 describe('customer authentication API', () => {
   const applications: Awaited<ReturnType<typeof buildApp>>[] = [];
@@ -305,5 +346,75 @@ describe('customer commerce API', () => {
       'sha256=signed',
       expect.objectContaining({ correlationId: expect.any(String) }),
     );
+  });
+});
+
+describe('live tracking API', () => {
+  const applications: Awaited<ReturnType<typeof buildApp>>[] = [];
+
+  afterEach(async () => {
+    await Promise.all(applications.splice(0).map((app) => app.close()));
+  });
+
+  it('returns tracking only after authenticating the owning customer', async () => {
+    const authService = createAuthService();
+    const trackingService = createTrackingService();
+    const app = await buildApp({ authService, trackingService, authConfig });
+    applications.push(app);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/customer/orders/ord_demo01/tracking',
+      headers: { cookie: 'rms_customer_session=opaque-session' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().tracking).toMatchObject({
+      orderId: 'ord_demo01',
+      status: 'preparing',
+    });
+    expect(authService.authenticate).toHaveBeenCalledWith('opaque-session');
+  });
+
+  it('passes a signed internal kitchen transition to the scoped service', async () => {
+    const authService = createAuthService();
+    const trackingService = createTrackingService();
+    const operationsVerifier = createOperationsVerifier();
+    const app = await buildApp({
+      authService,
+      trackingService,
+      operationsVerifier,
+      authConfig,
+    });
+    applications.push(app);
+
+    const payload = {
+      outletId: 'out_demo01',
+      expectedVersion: 1,
+      toStatus: 'in_progress',
+    };
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/internal/kitchen/tasks/tsk_demo01/transition',
+      headers: {
+        'x-rms-operations-timestamp': new Date().toISOString(),
+        'x-rms-operations-signature': 'sha256=signed',
+        'x-rms-tenant-id': 'ten_demo01',
+        'x-rms-outlet-id': 'out_demo01',
+        'x-rms-actor-id': 'usr_demo01',
+        'x-rms-actor-role': 'kitchen',
+      },
+      payload,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(operationsVerifier.verify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'POST',
+        path: '/api/v1/internal/kitchen/tasks/tsk_demo01/transition',
+        body: payload,
+      }),
+    );
+    expect(trackingService.transitionKitchenTask).toHaveBeenCalledOnce();
   });
 });

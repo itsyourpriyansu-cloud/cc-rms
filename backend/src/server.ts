@@ -11,6 +11,11 @@ import {
   readPaymentConfig,
 } from './commerce/index.js';
 import { createDatabasePool } from './database/index.js';
+import {
+  OperationsRequestVerifier,
+  readOperationsAuthConfig,
+} from './operations/index.js';
+import { TrackingEventHub, TrackingService } from './tracking/index.js';
 
 const ServerEnvironmentSchema = z.object({
   HOST: z.string().default('127.0.0.1'),
@@ -21,6 +26,7 @@ const start = async (): Promise<void> => {
   const serverConfig = ServerEnvironmentSchema.parse(process.env);
   const authConfig = readAuthConfig();
   const paymentConfig = readPaymentConfig();
+  const operationsAuthConfig = readOperationsAuthConfig();
   const pool = createDatabasePool();
   const authService = new CustomerAuthService(
     pool,
@@ -31,12 +37,24 @@ const start = async (): Promise<void> => {
     pool,
     createPaymentProvider(paymentConfig),
   );
+  const trackingService = new TrackingService(pool);
+  const trackingHub = new TrackingEventHub(pool);
+  const operationsVerifier = new OperationsRequestVerifier(
+    operationsAuthConfig,
+  );
   const app = await buildApp({
     authService,
     commerceService,
+    trackingService,
+    trackingHub,
+    operationsVerifier,
     authConfig,
     logger: true,
   });
+  app.addHook('onClose', async () => {
+    await trackingHub.stop();
+  });
+  await trackingHub.start();
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, 'Shutting down');

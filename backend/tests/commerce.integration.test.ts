@@ -9,6 +9,7 @@ import {
   readPaymentConfig,
   signPaymentWebhook,
 } from '../src/commerce/index.js';
+import { TrackingService } from '../src/tracking/index.js';
 
 describe('persisted quote, payment and checkout flow', () => {
   const database = new PGlite();
@@ -43,6 +44,7 @@ describe('persisted quote, payment and checkout flow', () => {
     }),
   );
   const service = new CommerceService(pool, provider);
+  const trackingService = new TrackingService(pool);
   const authenticated = {
     tenantId: 'ten_alpha01',
     customerId: 'cus_alpha01',
@@ -69,6 +71,8 @@ describe('persisted quote, payment and checkout flow', () => {
         line1: '12 Test Road',
         city: 'Hyderabad',
         pincode: '500001',
+        latitude: 17.4014,
+        longitude: 78.4851,
       },
     },
     lines: [
@@ -90,6 +94,7 @@ describe('persisted quote, payment and checkout flow', () => {
       '0002_customer_auth.sql',
       '0003_order_foundation.sql',
       '0004_checkout_api.sql',
+      '0005_live_tracking.sql',
     ]) {
       await database.exec(
         await readFile(resolve(process.cwd(), 'migrations', migration), 'utf8'),
@@ -106,6 +111,16 @@ describe('persisted quote, payment and checkout flow', () => {
 
       INSERT INTO customers (id, tenant_id, phone_e164, first_name)
       VALUES ('cus_alpha01', 'ten_alpha01', '+919876543210', 'Asha');
+
+      INSERT INTO staff_users (
+        id, tenant_id, phone_e164, display_name, status
+      )
+      VALUES (
+        'usr_alpha01', 'ten_alpha01', '+919111111111', 'Kitchen Asha', 'active'
+      );
+
+      INSERT INTO user_outlet_roles (tenant_id, user_id, outlet_id, role)
+      VALUES ('ten_alpha01', 'usr_alpha01', 'out_alpha01', 'kitchen');
 
       INSERT INTO brands (id, tenant_id, name, status)
       VALUES ('brd_alpha01', 'ten_alpha01', 'Mangamma', 'active');
@@ -352,5 +367,214 @@ describe('persisted quote, payment and checkout flow', () => {
       events: 6,
       outbox: 6,
     });
+  });
+
+  it('projects kitchen work into customer milestones and live delivery tracking', async () => {
+    const order = await database.query<{ id: string }>(
+      'SELECT id FROM orders LIMIT 1',
+    );
+    const orderId = order.rows[0]!.id;
+    const task = await database.query<{ id: string }>(
+      'SELECT id FROM kitchen_tasks WHERE order_id = $1',
+      [orderId],
+    );
+    const taskId = task.rows[0]!.id;
+    const kitchenPrincipal = {
+      tenantId: 'ten_alpha01',
+      outletId: 'out_alpha01',
+      actorId: 'usr_alpha01',
+      role: 'kitchen' as const,
+    };
+
+    await trackingService.transitionKitchenTask(
+      kitchenPrincipal,
+      taskId,
+      {
+        outletId: 'out_alpha01',
+        expectedVersion: 1,
+        toStatus: 'ready_to_start',
+      },
+      { correlationId: 'cor_task_ready_0001' },
+    );
+    await trackingService.transitionKitchenTask(
+      kitchenPrincipal,
+      taskId,
+      {
+        outletId: 'out_alpha01',
+        expectedVersion: 2,
+        toStatus: 'in_progress',
+      },
+      { correlationId: 'cor_task_start_0001' },
+    );
+    await trackingService.transitionKitchenTask(
+      kitchenPrincipal,
+      taskId,
+      {
+        outletId: 'out_alpha01',
+        expectedVersion: 3,
+        toStatus: 'completed',
+      },
+      { correlationId: 'cor_task_done_00001' },
+    );
+
+    const readySnapshot = await trackingService.getCustomerSnapshot(
+      authenticated,
+      orderId,
+      { correlationId: 'cor_snapshot_ready1' },
+    );
+    expect(readySnapshot).toMatchObject({
+      status: 'ready',
+      preparation: { totalTasks: 1, completedTasks: 1 },
+      destination: {
+        latitude: 17.4014,
+        longitude: 78.4851,
+      },
+    });
+    expect(readySnapshot.milestones.map((milestone) => milestone.type)).toEqual(
+      expect.arrayContaining([
+        'order_confirmed',
+        'preparation_started',
+        'quality_checked',
+        'ready',
+      ]),
+    );
+
+    const deliveryPrincipal = {
+      tenantId: 'ten_alpha01',
+      outletId: 'out_alpha01',
+      actorId: 'partner_delivery01',
+      role: 'delivery_partner' as const,
+    };
+    const assignedAt = new Date().toISOString();
+    const assignment = await trackingService.assignDelivery(
+      deliveryPrincipal,
+      orderId,
+      {
+        outletId: 'out_alpha01',
+        partnerName: 'Test Delivery',
+        partnerAssignmentReference: 'partner-assignment-flow-1',
+        riderDisplayName: 'Ravi K.',
+        riderPhoneMasked: '******3210',
+        vehicleLabelMasked: 'TS09 ** 2481',
+        assignedAt,
+      },
+      { correlationId: 'cor_assign_rider01' },
+    );
+    await trackingService.updateDeliveryStatus(
+      deliveryPrincipal,
+      orderId,
+      {
+        outletId: 'out_alpha01',
+        expectedVersion: assignment.version,
+        toStatus: 'picked_up',
+        occurredAt: new Date().toISOString(),
+      },
+      { correlationId: 'cor_pickup_rider01' },
+    );
+    const locationInput = {
+      outletId: 'out_alpha01',
+      providerEventId: 'provider-location-flow-0001',
+      latitude: 17.392345,
+      longitude: 78.486789,
+      accuracyMetres: 24,
+      headingDegrees: 18,
+      speedKph: 22,
+      recordedAt: new Date().toISOString(),
+    };
+    const firstLocation = await trackingService.recordDeliveryLocation(
+      deliveryPrincipal,
+      orderId,
+      locationInput,
+      { correlationId: 'cor_rider_location1' },
+    );
+    expect(firstLocation.duplicate).toBe(false);
+    const duplicateLocation = await trackingService.recordDeliveryLocation(
+      deliveryPrincipal,
+      orderId,
+      locationInput,
+      { correlationId: 'cor_rider_location2' },
+    );
+    expect(duplicateLocation).toMatchObject({
+      accepted: true,
+      duplicate: true,
+      visibility: 'exact',
+    });
+    const locationSignal = await database.query<{
+      payload: { data: Record<string, unknown> };
+    }>(
+      `
+        SELECT payload
+        FROM outbox_events
+        WHERE event_type = 'delivery.location_updated'
+        ORDER BY sequence_id DESC
+        LIMIT 1
+      `,
+    );
+    expect(locationSignal.rows[0]?.payload.data).not.toHaveProperty('latitude');
+    expect(locationSignal.rows[0]?.payload.data).not.toHaveProperty(
+      'longitude',
+    );
+
+    const liveSnapshot = await trackingService.getCustomerSnapshot(
+      authenticated,
+      orderId,
+      { correlationId: 'cor_snapshot_live01' },
+    );
+    expect(liveSnapshot).toMatchObject({
+      status: 'picked_up',
+      rider: {
+        displayName: 'Ravi K.',
+        phoneMasked: '******3210',
+        locationSharingEnabled: true,
+        position: {
+          latitude: 17.392345,
+          longitude: 78.486789,
+          freshness: 'live',
+        },
+      },
+    });
+    const streamed = await trackingService.listCustomerEvents(
+      authenticated,
+      orderId,
+      readySnapshot.latestSequence,
+      { correlationId: 'cor_stream_events01' },
+    );
+    expect(streamed.events.map((trackedEvent) => trackedEvent.type)).toContain(
+      'delivery.location_updated',
+    );
+
+    await trackingService.updateDeliveryStatus(
+      deliveryPrincipal,
+      orderId,
+      {
+        outletId: 'out_alpha01',
+        expectedVersion: 2,
+        toStatus: 'delivered',
+        occurredAt: new Date().toISOString(),
+      },
+      { correlationId: 'cor_delivered_0001' },
+    );
+    const deliveredSnapshot = await trackingService.getCustomerSnapshot(
+      authenticated,
+      orderId,
+      { correlationId: 'cor_snapshot_done01' },
+    );
+    expect(deliveredSnapshot).toMatchObject({
+      status: 'delivered',
+      rider: {
+        status: 'delivered',
+        locationSharingEnabled: false,
+        position: null,
+      },
+    });
+    const afterDeliveryEvents = await trackingService.listCustomerEvents(
+      authenticated,
+      orderId,
+      readySnapshot.latestSequence,
+      { correlationId: 'cor_stream_after_done01' },
+    );
+    expect(
+      afterDeliveryEvents.events.map((trackedEvent) => trackedEvent.type),
+    ).not.toContain('delivery.location_updated');
   });
 });
